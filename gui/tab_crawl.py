@@ -96,7 +96,7 @@ class WanderprintsTab(tk.Frame):
                              padx=14, pady=4, cursor="hand2")
         self.btn.pack(side="left", padx=(0, 8))
         self.btn_stop = tk.Button(frame_url, text="■  Dừng", command=self._stop,
-                                  bg="#e5e7eb", fg="#9ca3af", activebackground="#b91c1c",
+                                  bg="#ffffff", fg="#000000", activebackground="#b91c1c",
                                   font=("Segoe UI", 10, "bold"), relief="flat",
                                   padx=14, pady=4, cursor="hand2", state="disabled")
         self.btn_stop.pack(side="left")
@@ -217,7 +217,7 @@ class WanderprintsTab(tk.Frame):
         self.is_running = False
         self._log("\n[!] Đang gửi lệnh dừng đến tiến trình tải ảnh...")
         self.status_var.set("Đang dừng...")
-        self.btn_stop.configure(state="disabled", bg="#fca5a5", fg="#ffffff")
+        self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
 
     def _set_progress(self, current, total):
         pct = int(current / total * 100) if total else 0
@@ -255,7 +255,7 @@ class WanderprintsTab(tk.Frame):
     def _done(self, ok, fail, save_path="", elapsed_m=0, elapsed_s=0):
         self.progress["value"] = 100
         self.btn.configure(state="normal", bg="#2563eb", fg="#ffffff")
-        self.btn_stop.configure(state="disabled", bg="#e5e7eb", fg="#9ca3af")
+        self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
         self.is_running = False
         time_str = f"  |⏱ {elapsed_m:02d}:{elapsed_s:02d}" if (elapsed_m or elapsed_s) else ""
         self.status_var.set(f"Xong — thành công: {ok}  |  thất bại: {fail}{time_str}")
@@ -300,7 +300,7 @@ class GossbyTab(tk.Frame):
                              padx=14, pady=4, cursor="hand2")
         self.btn.pack(side="left", padx=(0, 8))
         self.btn_stop = tk.Button(frame_url, text="■  Dừng", command=self._stop,
-                                  bg="#dc2626", fg="#fff", activebackground="#b91c1c",
+                                  bg="#ffffff", fg="#000000", activebackground="#b91c1c",
                                   font=("Segoe UI", 10, "bold"), relief="flat",
                                   padx=14, pady=4, cursor="hand2", state="disabled")
         self.btn_stop.pack(side="left")
@@ -398,7 +398,7 @@ class GossbyTab(tk.Frame):
         self.is_running = False
         self._log("\n[!] Đang gửi lệnh dừng đến tiến trình tải ảnh...")
         self.status_var.set("Đang dừng...")
-        self.btn_stop.configure(state="disabled", bg="#fca5a5", fg="#ffffff")
+        self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
 
 
     def _start(self):
@@ -463,7 +463,7 @@ class GossbyTab(tk.Frame):
 
     def _done(self, success, save_path, elapsed_m=0, elapsed_s=0):
         self.btn.configure(state="normal", bg="#2563eb", fg="#ffffff")
-        self.btn_stop.configure(state="disabled", bg="#e5e7eb", fg="#9ca3af")
+        self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
         self.is_running = False
         if success:
             time_str = f" (⏱ {elapsed_m:02d}:{elapsed_s:02d})"

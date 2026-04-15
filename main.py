@@ -1,23 +1,18 @@
-"""
-POD Tools - App Hợp Nhất
-Gồm 2 chức năng chính:
-- Crawl Ảnh (từ Gossby/Wanderprints)
-- Resize Ảnh (Hàng loạt + DPI 300)
-"""
-import sys
+﻿import sys
 import os
 import tkinter as tk
 from tkinter import ttk
 
-# Import các tab
+# Import cÃ¡c tab
 from gui.tab_crawl import CrawlTab
 from gui.tab_resize import ResizeTab
 from gui.update_dialog import UpdateDialog
 
-# Để hỗ trợ import 'core' từ bất cứ đâu
+# Äá»ƒ há»— trá»£ import 'core' tá»« báº¥t cá»© Ä‘Ã¢u
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from core import updater
+from core import config
 
 BG_MAIN = "#f5f7fa"
 BG_SIDE = "#ffffff"
@@ -48,15 +43,15 @@ class PODToolsApp(tk.Tk):
         self.frames["crawl"] = CrawlTab(self.main_area)
         self.frames["resize"] = ResizeTab(self.main_area)
         
-        # Mặc định mở tab đầu tiên
+        # Máº·c Ä‘á»‹nh má»Ÿ tab Ä‘áº§u tiÃªn
         self._switch_tab("crawl", self.btn_crawl)
         
-        # Bắt đầu kiểm tra bản cập nhật
+        # Báº¯t Ä‘áº§u kiá»ƒm tra báº£n cáº­p nháº­t
         self._init_updater()
 
     def _init_updater(self):
         def _on_update_found(new_version, release_notes, download_url, sha256):
-            # Popup giao diện hỏi yêu cầu nâng cấp được chạy trên main thread
+            # Popup giao diá»‡n há»i yÃªu cáº§u nÃ¢ng cáº¥p Ä‘Æ°á»£c cháº¡y trÃªn main thread
             UpdateDialog(self, new_version, release_notes, download_url, sha256)
             
         updater.check_for_updates(self, _on_update_found)
@@ -108,20 +103,24 @@ class PODToolsApp(tk.Tk):
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
 
-        # Trống trên đầu 1 chút
+        # Trá»‘ng trÃªn Ä‘áº§u 1 chÃºt
         tk.Label(self.sidebar, text="POD TOOLS", font=("Segoe UI", 16, "bold"), 
                  bg=BG_SIDE, fg="#000000").pack(pady=(30, 20))
 
-        # Các Nút Menu
+        # CÃ¡c NÃºt Menu
         self.btn_crawl = self._make_menu_btn("Crawl Image", "crawl", self.icon_crawl)
         self.btn_crawl.pack(fill="x", pady=2, padx=10)
         
         self.btn_resize = self._make_menu_btn("Resize Image", "resize", self.icon_resize)
         self.btn_resize.pack(fill="x", pady=2, padx=10)
         
-        # Phần dư ở dưới
-        tk.Label(self.sidebar, text="By IT POD Software", font=("Segoe UI", 9), 
-                 bg=BG_SIDE, fg="#000000").pack(side="bottom", pady=10)
+        # Pháº§n dÆ° á»Ÿ dÆ°á»›i
+        footer = tk.Frame(self.sidebar, bg=BG_SIDE)
+        footer.pack(side="bottom", pady=(0, 10))
+        tk.Label(footer, text=f"Version {config.CURRENT_VERSION}", font=("Segoe UI", 9, "bold"),
+                 bg=BG_SIDE, fg="#000000").pack()
+        tk.Label(footer, text="By IT POD SOFTWARE", font=("Segoe UI", 9),
+                 bg=BG_SIDE, fg="#000000").pack(pady=(1, 0))
 
     def _make_menu_btn(self, text, tab_id, icon=None):
         btn = tk.Button(self.sidebar, text=f" {text}", font=("Segoe UI", 11, "bold"),
@@ -156,17 +155,17 @@ class PODToolsApp(tk.Tk):
         self.main_area.pack(side="left", fill="both", expand=True)
 
     def _switch_tab(self, tab_id, btn):
-        # Đổi màu hiển thị của sidebar
+        # Äá»•i mÃ u hiá»ƒn thá»‹ cá»§a sidebar
         if self.current_btn:
             self.current_btn.configure(bg=BG_SIDE, fg=TEXT)
         self.current_btn = btn
         self.current_btn.configure(bg=ACCENT, fg="#000000")
         
-        # Ẩn frame cũ
+        # áº¨n frame cÅ©
         if self.current_frame:
             self.current_frame.pack_forget()
             
-        # Hiển thị frame mới
+        # Hiá»ƒn thá»‹ frame má»›i
         self.current_frame = self.frames[tab_id]
         self.current_frame.pack(fill="both", expand=True)
 
