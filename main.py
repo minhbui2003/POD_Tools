@@ -12,9 +12,12 @@ from tkinter import ttk
 # Import các tab
 from gui.tab_crawl import CrawlTab
 from gui.tab_resize import ResizeTab
+from gui.update_dialog import UpdateDialog
 
 # Để hỗ trợ import 'core' từ bất cứ đâu
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from core import updater
 
 BG_MAIN = "#f5f7fa"
 BG_SIDE = "#ffffff"
@@ -47,8 +50,19 @@ class PODToolsApp(tk.Tk):
         
         # Mặc định mở tab đầu tiên
         self._switch_tab("crawl", self.btn_crawl)
+        
+        # Bắt đầu kiểm tra bản cập nhật
+        self._init_updater()
+
+    def _init_updater(self):
+        def _on_update_found(new_version, release_notes, download_url, sha256):
+            # Popup giao diện hỏi yêu cầu nâng cấp được chạy trên main thread
+            UpdateDialog(self, new_version, release_notes, download_url, sha256)
+            
+        updater.check_for_updates(self, _on_update_found)
 
     def _load_menu_icons(self):
+
         try:
             from PIL import Image, ImageTk
             import sys

@@ -31,3 +31,10 @@ GET_PRODUCT_HEADERS = {
     "cache-control": "no-cache",
     "content-type": "application/json",
 }
+
+# ─────────────────────────────────────────────
+# Update Configurations
+# ─────────────────────────────────────────────
+CURRENT_VERSION = "1.0.0"
+# Đổi URL này sang URL raw file version.json thực tế của bạn trên Github hoặc Server
+UPDATE_JSON_URL = "https://raw.githubusercontent.com/minhbui2003/POD_Tools/main/version.json"
