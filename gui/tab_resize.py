@@ -363,12 +363,12 @@ class ResizeTab(tk.Frame):
     #  ACTIONS
     # ─────────────────────────────────────────
     def _browse_source(self):
-        folder = filedialog.askdirectory(title="Chọn thư mục nguồn")
+        folder = filedialog.askdirectory(parent=self, title="Chọn thư mục nguồn")
         if folder:
             self._scan_folder(folder)
 
     def _browse_source_files(self):
-        files = filedialog.askopenfilenames(title="Chọn File Ảnh",
+        files = filedialog.askopenfilenames(parent=self, title="Chọn File Ảnh",
                                             filetypes=[("Image files", "*.png *.jpg *.jpeg *.webp *.bmp *.tiff")])
         if files:
             self._scan_files(files)
@@ -382,7 +382,7 @@ class ResizeTab(tk.Frame):
         self._log("🗑 Đã xóa toàn bộ danh sách nguồn.", "warn")
 
     def _browse_output(self):
-        folder = filedialog.askdirectory(title="Chọn thư mục xuất")
+        folder = filedialog.askdirectory(parent=self, title="Chọn thư mục xuất")
         if folder:
             self.output_folder.set(folder)
 

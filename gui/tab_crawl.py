@@ -15,6 +15,16 @@ def _is_empty_output_folder(value):
     value = value.strip()
     return not value or value == OUTPUT_PLACEHOLDER or "Tool" in value
 
+
+def _ask_output_folder(parent):
+    parent.update_idletasks()
+    return filedialog.askdirectory(
+        parent=parent,
+        title="Chon thu muc luu",
+        initialdir=get_default_dialog_dir(),
+        mustexist=True,
+    )
+
 # ─────────────────────────────────────────────
 # Encrypt / Decrypt helpers (XOR + base64)
 # ─────────────────────────────────────────────
@@ -150,7 +160,7 @@ class WanderprintsTab(tk.Frame):
         wp_entry.bind("<FocusOut>", wp_focus_out)
         self.folder_entry = wp_entry
 
-        tk.Button(folder_frame, text="📁", command=self._browse_folder,
+        tk.Button(folder_frame, text="Chon", command=self._browse_folder,
                   bg="#e5e7eb", fg="#000000", relief="flat",
                   font=("Segoe UI", 10), cursor="hand2", padx=6).pack(side="left")
 
@@ -177,7 +187,7 @@ class WanderprintsTab(tk.Frame):
 
 
     def _browse_folder(self):
-        path = filedialog.askdirectory(title="Chọn thư mục lưu", initialdir=get_default_dialog_dir())
+        path = _ask_output_folder(self)
         if path:
             self.folder_var.set(path)
             self.folder_entry.config(fg="#000000")
@@ -237,23 +247,17 @@ class WanderprintsTab(tk.Frame):
 
     def _worker(self, url, do_media, do_swatch, do_desc, base_dir=None):
         try:
-            # Override WP_OUTPUT_ROOT with chosen folder if provided
-            import core.config as _self_mod
-            orig = _self_mod.WP_OUTPUT_ROOT
-            if base_dir:
-                _self_mod.WP_OUTPUT_ROOT = base_dir
-            
             # Chỉ dùng API key nếu người dùng tích chọn ô New Description
             _key_to_use = self.gemini_key_var.get().strip() if do_desc else None
             
             dl = Downloader(log_fn=self._log, progress_fn=self._set_progress,
-                            gemini_api_key=_key_to_use or None, is_running_check=lambda: getattr(self, "is_running", False))
+                            gemini_api_key=_key_to_use or None,
+                            is_running_check=lambda: getattr(self, "is_running", False),
+                            output_root=base_dir)
             _t0 = time.time()
             out_dir = dl.run(url, do_media=do_media, do_swatch=do_swatch)
             _elapsed = time.time() - _t0
             _mm, _ss = divmod(int(_elapsed), 60)
-            if base_dir:
-                _self_mod.WP_OUTPUT_ROOT = orig
             save_path = base_dir
             self.after(0, self._done, dl.total_ok, dl.total_fail, save_path, _mm, _ss)
         except Exception as e:
@@ -356,7 +360,7 @@ class GossbyTab(tk.Frame):
         gs_entry.bind("<FocusOut>", gs_focus_out)
         self.folder_entry = gs_entry
 
-        tk.Button(folder_frame, text="📁", command=self._browse_folder,
+        tk.Button(folder_frame, text="Chon", command=self._browse_folder,
                   bg="#e5e7eb", fg="#000000", relief="flat",
                   font=("Segoe UI", 10), cursor="hand2", padx=6).pack(side="left")
 
@@ -378,7 +382,7 @@ class GossbyTab(tk.Frame):
 
 
     def _browse_folder(self):
-        path = filedialog.askdirectory(title="Chọn thư mục lưu", initialdir=get_default_dialog_dir())
+        path = _ask_output_folder(self)
         if path:
             self.folder_var.set(path)
             self.folder_entry.config(fg="#000000")
@@ -573,7 +577,7 @@ class CollectionTab(tk.Frame):
         col_entry.bind("<FocusOut>", col_focus_out)
         self.folder_entry = col_entry
 
-        tk.Button(folder_frame, text="📁", command=self._browse_folder,
+        tk.Button(folder_frame, text="Chon", command=self._browse_folder,
                   bg="#e5e7eb", fg="#000000", relief="flat",
                   font=("Segoe UI", 10), cursor="hand2", padx=6).pack(side="left")
 
@@ -593,7 +597,7 @@ class CollectionTab(tk.Frame):
 
 
     def _browse_folder(self):
-        path = filedialog.askdirectory(title="Chọn thư mục lưu", initialdir=get_default_dialog_dir())
+        path = _ask_output_folder(self)
         if path:
             self.folder_var.set(path)
             self.folder_entry.config(fg="#000000")
@@ -676,15 +680,11 @@ class CollectionTab(tk.Frame):
                             gs_scrape_personalized_data(p_url, do_cliparts=do_cliparts,
                                                         base_dir=base_dir, is_running_check=lambda: getattr(self, "is_running", False))
                     elif site == "wanderprints":
-                        import core.config as _self_mod
-                        orig = _self_mod.WP_OUTPUT_ROOT
-                        if base_dir:
-                            _self_mod.WP_OUTPUT_ROOT = base_dir
                         dl = Downloader(log_fn=self._log,
-                                        gemini_api_key=None, is_running_check=lambda: getattr(self, "is_running", False))
+                                        gemini_api_key=None,
+                                        is_running_check=lambda: getattr(self, "is_running", False),
+                                        output_root=base_dir)
                         dl.run(p_url, do_media=do_variants, do_swatch=do_layers)
-                        if base_dir:
-                            _self_mod.WP_OUTPUT_ROOT = orig
                     ok_count += 1
                 except Exception as e:
                     self._log(f"  [ERROR] {e}")

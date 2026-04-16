@@ -1,4 +1,4 @@
-import os, requests, base64, re, json, threading, time, io
+import os, sys, requests, base64, re, json, threading, time, io
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -9,6 +9,10 @@ from PIL import Image
 # Thread-local storage: mỗi thread dùng session riêng (thread-safe)
 _thread_local = threading.local()
 
+
+def _worker_count(default_workers, mac_workers):
+    return mac_workers if sys.platform == "darwin" else default_workers
+
 def _get_thread_session():
     if not hasattr(_thread_local, 'session'):
         _thread_local.session = requests.Session()
@@ -18,11 +22,12 @@ def _get_thread_session():
 # WANDERPRINTS — Downloader
 # ─────────────────────────────────────────────
 class Downloader:
-    def __init__(self, log_fn, progress_fn=None, gemini_api_key=None, is_running_check=None):
+    def __init__(self, log_fn, progress_fn=None, gemini_api_key=None, is_running_check=None, output_root=None):
         self.log = log_fn
         self.progress_fn = progress_fn
         self.gemini_api_key = gemini_api_key
         self.is_running_check = is_running_check or (lambda: True)
+        self.output_root = output_root or WP_OUTPUT_ROOT
         self.total_ok = self.total_fail = 0
         self.downloaded = set()
         self.dl_headers = {"User-Agent": "Mozilla/5.0"}
@@ -75,7 +80,7 @@ class Downloader:
         if not slug: self.log("[FAIL] Không tách được slug!"); return
         slug_prefix = "-".join(slug.split("-")[:10])
         self.log(f"[1] Slug: {slug}\n    Thư mục: {slug_prefix}")
-        os.makedirs(WP_OUTPUT_ROOT, exist_ok=True)
+        os.makedirs(self.output_root, exist_ok=True)
 
         if do_swatch:
             now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S -0800")
@@ -100,7 +105,7 @@ class Downloader:
         else:
             self.log("[SKIP] Bỏ qua Media (ảnh sản phẩm)")
 
-        out_dir = os.path.join(WP_OUTPUT_ROOT, slug_prefix)
+        out_dir = os.path.join(self.output_root, slug_prefix)
         _elapsed = time.time() - _t_start
         _mm, _ss = divmod(int(_elapsed), 60)
         self.log(f"\n{'='*55}\nHOÀN TẤT! Thành công: {self.total_ok} | Thất bại: {self.total_fail}\nẢnh lưu tại: {os.path.abspath(out_dir)}/\n⏱  Thời gian: {_mm:02d}:{_ss:02d}\n{'='*55}")
@@ -111,8 +116,8 @@ class Downloader:
         if not cliparts:
             elems = (data_obj.get("customizationForm") or {}).get("elements", [])
             cliparts = [e for e in elems if any("path" in (v or {}) for v in e.get("values", []))]
-        dir_cliparts = os.path.join(WP_OUTPUT_ROOT, slug_prefix, "cliparts")
-        dir_variant  = os.path.join(WP_OUTPUT_ROOT, slug_prefix, "variantCombinations")
+        dir_cliparts = os.path.join(self.output_root, slug_prefix, "cliparts")
+        dir_variant  = os.path.join(self.output_root, slug_prefix, "variantCombinations")
         for d in [dir_cliparts, dir_variant]: os.makedirs(d, exist_ok=True)
         category_map = {}
         for tpl in data_obj.get("templates", []):
@@ -137,7 +142,7 @@ class Downloader:
                 os.makedirs(cat_dir, exist_ok=True)
                 self.log(f"  [{i:03d}] {name}  (cat: {folder_name})")
                 self.download(BASE_IMG_BY + clean, os.path.join(cat_dir, f"{i:03d}_{sanitize_wp(name)}.{ext}"))
-        with ThreadPoolExecutor(max_workers=8) as ex:
+        with ThreadPoolExecutor(max_workers=_worker_count(8, 4)) as ex:
             list(ex.map(_dl_clipart, enumerate(cliparts, 1)))
         elems = (data_obj.get("customizationForm") or {}).get("elements", [])
         img_sw = [e for e in elems if (e.get("typeConfig") or {}).get("type") == "image_swatch"]
@@ -159,7 +164,7 @@ class Downloader:
                 ext = clean.split(".")[-1].split("?")[0] or "webp"
                 opt_id = v.get("optionId") or v.get("value") or v_idx
                 self.download(BASE_IMG_BY + clean, os.path.join(grp_dir, f"{v_idx:03d}_option_{opt_id}.{ext}"))
-            with ThreadPoolExecutor(max_workers=8) as ex:
+            with ThreadPoolExecutor(max_workers=_worker_count(8, 4)) as ex:
                 futures = {ex.submit(_dl_swatch, (i+1, v)): i for i, v in enumerate(values)}
                 for fut in as_completed(futures):
                     done_count += 1
@@ -192,7 +197,7 @@ class Downloader:
         if cu_resp.status_code != 200: return
         cu_data = cu_resp.json()
         # ── Lưu toàn bộ Customily config ra JSON ──
-        out_dir_temp = os.path.join(WP_OUTPUT_ROOT, slug_prefix)
+        out_dir_temp = os.path.join(self.output_root, slug_prefix)
         os.makedirs(out_dir_temp, exist_ok=True)
         cu_json_path = os.path.join(out_dir_temp, "customily_config.json")
         with open(cu_json_path, 'w', encoding='utf-8') as _f:
@@ -214,8 +219,8 @@ class Downloader:
         placeholder_lib_map = {str(ph.get("id")): ph.get("imageLibraryId") for ph in image_placeholders if ph.get("id") is not None and ph.get("imageLibraryId") is not None}
         swatch_opts = [opt for s in sets for opt in s.get("options", []) if opt.get("type") == "Swatch"]
         self.log(f"[OK] {len(swatch_opts)} Swatch option(s)")
-        dir_cliparts = os.path.join(WP_OUTPUT_ROOT, slug_prefix, "cliparts")
-        dir_variant  = os.path.join(WP_OUTPUT_ROOT, slug_prefix, "variantCombinations")
+        dir_cliparts = os.path.join(self.output_root, slug_prefix, "cliparts")
+        dir_variant  = os.path.join(self.output_root, slug_prefix, "variantCombinations")
         os.makedirs(dir_cliparts, exist_ok=True); os.makedirs(dir_variant, exist_ok=True)
         total_vals = sum(len(s.get("values", [])) for s in swatch_opts)
         done_count = 0
@@ -291,7 +296,7 @@ class Downloader:
                 except Exception as e: self.log(f"  [ERROR GetProduct] {e}")
 
         # Chạy 20 threads song song cho toàn bộ tasks
-        with ThreadPoolExecutor(max_workers=20) as ex:
+        with ThreadPoolExecutor(max_workers=_worker_count(20, 6)) as ex:
             futures = {ex.submit(_process_task, t): t for t in all_tasks}
             for fut in as_completed(futures):
                 with done_lock:
@@ -331,7 +336,7 @@ class Downloader:
 
         # ── Lưu thông tin sản phẩm vào product.json ──
         description = js_data.get("body_html", "") or js_data.get("description", "")
-        prod_dir = os.path.join(WP_OUTPUT_ROOT, slug_prefix)
+        prod_dir = os.path.join(self.output_root, slug_prefix)
         os.makedirs(prod_dir, exist_ok=True)
 
         product_data = {
@@ -370,7 +375,7 @@ class Downloader:
 
 
         if not images: return
-        dir_media = os.path.join(WP_OUTPUT_ROOT, slug_prefix, "media")
+        dir_media = os.path.join(self.output_root, slug_prefix, "media")
         os.makedirs(dir_media, exist_ok=True)
         # Parallel download product images (8 threads)
         def _dl_media(args):
@@ -379,7 +384,7 @@ class Downloader:
             ext = (img_url.split("?")[0].split(".")[-1])[:5] or "jpg"
             fname = f"{i:03d}.{ext}"
             self.download(img_url, os.path.join(dir_media, fname), f"media/{fname}")
-        with ThreadPoolExecutor(max_workers=8) as ex:
+        with ThreadPoolExecutor(max_workers=_worker_count(8, 4)) as ex:
             list(ex.map(_dl_media, enumerate(images, 1)))
 
     def _rewrite_with_gemini(self, html_desc: str) -> str | None:

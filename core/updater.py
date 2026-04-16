@@ -264,6 +264,7 @@ if errorlevel 1 (
 )
 
 :: Khoi dong lai app
+set PYINSTALLER_RESET_ENVIRONMENT=1
 start "" "{exe_path}"
 
 :: Tu xoa script nay
@@ -315,6 +316,7 @@ chmod +x "{exe_path}"
 xattr -cr "{exe_path}" 2>/dev/null
 
 # Khoi dong lai app
+export PYINSTALLER_RESET_ENVIRONMENT=1
 nohup "{exe_path}" >/dev/null 2>&1 &
 
 # Tu xoa script nay
