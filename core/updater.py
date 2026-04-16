@@ -14,6 +14,14 @@ def is_frozen():
     """Kiểm tra xem app đang chạy bằng file exe (đã build) hay đang chạy source code python"""
     return getattr(sys, "frozen", False)
 
+def is_macos():
+    """Kiểm tra xem đang chạy trên macOS"""
+    return sys.platform == "darwin"
+
+def is_windows():
+    """Kiểm tra xem đang chạy trên Windows"""
+    return sys.platform == "win32"
+
 def parse_version(v_str):
     """Chuyển đổi version string (1.0.1) thành tuple (1,0,1) để so sánh"""
     try:
@@ -40,6 +48,36 @@ def is_valid_sha256(value):
     value = str(value).strip().lower()
     return len(value) == 64 and all(char in "0123456789abcdef" for char in value)
 
+def _get_platform_key():
+    """Trả về key platform cho version.json"""
+    if is_macos():
+        return "macos"
+    return "windows"
+
+def _parse_update_data(data):
+    """
+    Đọc version.json hỗ trợ cả format mới (multi-platform) và cũ (single-platform).
+    Trả về (version, download_url, sha256, release_notes) hoặc None nếu không hợp lệ.
+    """
+    new_version_str = data.get("version", "0.0.0")
+    release_notes = data.get("release_notes", "Bản cập nhật mới giúp tăng cường hiệu suất và sửa lỗi.")
+
+    platform_key = _get_platform_key()
+
+    # Format mới: có key "windows" / "macos"
+    if platform_key in data and isinstance(data[platform_key], dict):
+        platform_data = data[platform_key]
+        download_url = platform_data.get("download_url", "")
+        sha256 = str(platform_data.get("sha256", "")).strip().lower()
+    # Format cũ (backward-compatible): "download_url" và "sha256" ở root
+    elif "download_url" in data:
+        download_url = data.get("download_url", "")
+        sha256 = str(data.get("sha256", "")).strip().lower()
+    else:
+        return None
+
+    return (new_version_str, download_url, sha256, release_notes)
+
 def check_for_updates(root, on_update_found_callback):
     """
     Chạy ngầm kiểm tra cập nhật.
@@ -60,16 +98,17 @@ def check_for_updates(root, on_update_found_callback):
             with urllib.request.urlopen(req, timeout=5) as response:
                 if response.status == 200:
                     data = json.loads(response.read().decode('utf-8'))
-                    
-                    new_version_str = data.get("version", "0.0.0")
+
+                    result = _parse_update_data(data)
+                    if result is None:
+                        print(f"Updater: Khong co du lieu cap nhat cho platform '{_get_platform_key()}'.")
+                        return
+
+                    new_version_str, download_url, sha256, release_notes = result
                     curr_ver = parse_version(config.CURRENT_VERSION)
                     new_ver = parse_version(new_version_str)
                     
                     if new_ver > curr_ver:
-                        download_url = data.get("download_url")
-                        release_notes = data.get("release_notes", "Bản cập nhật mới giúp tăng cường hiệu suất và sửa lỗi.")
-                        sha256 = str(data.get("sha256", "")).strip().lower()
-                        
                         if not download_url:
                             print("Updater: Thieu download_url trong file cap nhat.")
                             return
@@ -78,7 +117,7 @@ def check_for_updates(root, on_update_found_callback):
                             print("Updater: Thieu hoac sai dinh dang SHA256 trong file cap nhat.")
                             return
 
-                            # Cần gọi callback về main thread xử lý UI
+                        # Cần gọi callback về main thread xử lý UI
                         root.after(0, on_update_found_callback, new_version_str, release_notes, download_url, sha256)
         except urllib.error.URLError:
             print("Updater: Không có mạng hoặc server không phản hồi.")
@@ -91,14 +130,21 @@ def check_for_updates(root, on_update_found_callback):
     thread.start()
 
 def download_and_install_update(download_url, expected_sha256, progress_callback, success_callback, error_callback):
+    if is_macos():
+        error_callback("macOS su dung cap nhat thu cong: tai file zip moi va thay app hien tai.")
+        return
+
     """Luồng tải file và cài đặt. Trả về tiến trình bằng progress_callback(percent)"""
     def _download():
         try:
             exe_path = sys.executable
             exe_dir = os.path.dirname(exe_path)
             exe_name = os.path.basename(exe_path)
-            
-            temp_download_path = os.path.join(os.environ.get('TEMP', exe_dir), f"{exe_name}.download")
+
+            temp_download_path = os.path.join(
+                os.environ.get('TEMP', exe_dir) if is_windows() else os.environ.get('TMPDIR', '/tmp'),
+                f"{exe_name}.download"
+            )
             new_exe_path = os.path.join(exe_dir, f"{exe_name}.new")
 
             for stale_path in (temp_download_path, new_exe_path):
@@ -119,7 +165,7 @@ def download_and_install_update(download_url, expected_sha256, progress_callback
                     total_size = 0
                 downloaded_size = 0
                 block_size = 8192
-                
+
                 with open(temp_download_path, 'wb') as file:
                     while True:
                         buffer = response.read(block_size)
@@ -147,7 +193,7 @@ def download_and_install_update(download_url, expected_sha256, progress_callback
                     for byte_block in iter(lambda: f.read(4096), b""):
                         sha_hash.update(byte_block)
                 file_hash = sha_hash.hexdigest()
-                
+
                 if file_hash.lower() != expected_sha256.lower():
                     os.remove(temp_download_path)
                     error_callback("File tải về bị lỗi (sai Checksum). Việc cập nhật bị huỷ tự động.")
@@ -164,13 +210,31 @@ def download_and_install_update(download_url, expected_sha256, progress_callback
             except Exception as e:
                 error_callback(f"Lỗi khi di chuyển file báo cáo: {str(e)}")
                 return
-                
-            # Tạo batch script để rollback
-            bat_path = os.path.join(exe_dir, "updater.bat")
-            pid = os.getpid()
-            bak_exe_path = os.path.join(exe_dir, f"{exe_name}.bak")
             
-            bat_content = f"""@echo off
+            # Tạo script cập nhật theo platform
+            if is_macos():
+                script_path = _create_mac_update_script(exe_dir, exe_path, exe_name, new_exe_path)
+            else:
+                script_path = _create_windows_update_script(exe_dir, exe_path, exe_name, new_exe_path)
+
+            # Đã tải và chuẩn bị xong, kích hoạt callback để tắt app
+            success_callback(script_path)
+
+        except urllib.error.URLError as e:
+            error_callback(f"Lỗi kết nối khi tải bản cập nhật: {e.reason}")
+        except Exception as e:
+            error_callback(f"Có lỗi hệ thống xảy ra: {e}")
+
+    thread = threading.Thread(target=_download, daemon=True)
+    thread.start()
+
+def _create_windows_update_script(exe_dir, exe_path, exe_name, new_exe_path):
+    """Tạo batch script cập nhật cho Windows"""
+    bat_path = os.path.join(exe_dir, "updater.bat")
+    pid = os.getpid()
+    bak_exe_path = os.path.join(exe_dir, f"{exe_name}.bak")
+
+    bat_content = f"""@echo off
 setlocal
 echo Chuyen doi phien ban, vui long doi...
 :: Doi de process exit
@@ -205,26 +269,80 @@ start "" "{exe_path}"
 :: Tu xoa script nay
 (goto) 2>nul & del "%~f0"
 """
-            with open(bat_path, "w") as f:
-                f.write(bat_content)
-                
-            # Đã tải và chuẩn bị xong, kích hoạt callback để tắt app
-            success_callback(bat_path)
+    with open(bat_path, "w") as f:
+        f.write(bat_content)
 
-        except urllib.error.URLError as e:
-            error_callback(f"Lỗi kết nối khi tải bản cập nhật: {e.reason}")
-        except Exception as e:
-            error_callback(f"Có lỗi hệ thống xảy ra: {e}")
+    return bat_path
 
-    thread = threading.Thread(target=_download, daemon=True)
-    thread.start()
+def _create_mac_update_script(exe_dir, exe_path, exe_name, new_exe_path):
+    """Tạo shell script cập nhật cho macOS"""
+    sh_path = os.path.join(exe_dir, "updater.sh")
+    pid = os.getpid()
+    bak_exe_path = os.path.join(exe_dir, f"{exe_name}.bak")
 
-def execute_updater_and_exit(bat_path):
-    """Khởi chạy file batch ngầm và tắt hẳn ứng dụng hiện tại"""
-    bat_dir = os.path.dirname(bat_path)
-    subprocess.Popen(
-        ['cmd.exe', '/c', bat_path],
-        creationflags=subprocess.CREATE_NO_WINDOW,
-        cwd=bat_dir
-    )
+    sh_content = f"""#!/bin/bash
+echo "Chuyen doi phien ban, vui long doi..."
+
+# Doi de process exit
+while kill -0 {pid} 2>/dev/null; do
+    sleep 1
+done
+
+# Xoa file bak neu co tu lan update truoc
+if [ -f "{bak_exe_path}" ]; then
+    rm -f "{bak_exe_path}"
+fi
+
+# Backup file cu
+mv "{exe_path}" "{bak_exe_path}"
+if [ $? -ne 0 ]; then
+    echo "Loi khi rename file cu. Dung qua trinh."
+    exit 1
+fi
+
+# Dua file new thanh file chinh
+mv "{new_exe_path}" "{exe_path}"
+if [ $? -ne 0 ]; then
+    echo "Loi ghi de. Khoi phuc ban cu..."
+    mv "{bak_exe_path}" "{exe_path}"
+    exit 1
+fi
+
+# Cap quyen thuc thi
+chmod +x "{exe_path}"
+
+# Xoa quarantine attribute (macOS Gatekeeper) de tranh bi chan
+xattr -cr "{exe_path}" 2>/dev/null
+
+# Khoi dong lai app
+nohup "{exe_path}" >/dev/null 2>&1 &
+
+# Tu xoa script nay
+rm -f "$0"
+"""
+    with open(sh_path, "w") as f:
+        f.write(sh_content)
+
+    # Cấp quyền thực thi cho script
+    os.chmod(sh_path, 0o755)
+
+    return sh_path
+
+def execute_updater_and_exit(script_path):
+    """Khởi chạy file script ngầm và tắt hẳn ứng dụng hiện tại"""
+    script_dir = os.path.dirname(script_path)
+
+    if is_macos():
+        subprocess.Popen(
+            ['bash', script_path],
+            cwd=script_dir,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+    else:
+        subprocess.Popen(
+            ['cmd.exe', '/c', script_path],
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            cwd=script_dir
+        )
     sys.exit(0)

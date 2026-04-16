@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from core import updater
 from core import config
+from core.platform_utils import get_asset_path
 
 BG_MAIN = "#f5f7fa"
 BG_SIDE = "#ffffff"
@@ -60,16 +61,9 @@ class PODToolsApp(tk.Tk):
 
         try:
             from PIL import Image, ImageTk
-            import sys
-            
-            if getattr(sys, 'frozen', False):
-                base_path = sys._MEIPASS
-            else:
-                base_path = os.path.dirname(os.path.abspath(__file__))
-            
             # Helper to load and resize
             def _get_img(name):
-                p = os.path.join(base_path, "assets", name)
+                p = get_asset_path(name)
                 if os.path.exists(p):
                     img = Image.open(p).resize((24, 24), Image.LANCZOS)
                     return ImageTk.PhotoImage(img)
@@ -84,14 +78,7 @@ class PODToolsApp(tk.Tk):
     def _set_app_icon(self):
         try:
             from PIL import Image, ImageTk
-            import sys
-            
-            if getattr(sys, 'frozen', False):
-                base_path = sys._MEIPASS
-            else:
-                base_path = os.path.dirname(os.path.abspath(__file__))
-                
-            icon_path = os.path.join(base_path, "assets", "Logo_bg.png")
+            icon_path = get_asset_path("Logo_bg.png")
             if os.path.exists(icon_path):
                 icon_img = Image.open(icon_path)
                 self.iconphoto(False, ImageTk.PhotoImage(icon_img))
@@ -127,13 +114,6 @@ class PODToolsApp(tk.Tk):
                         bg=BG_SIDE, fg=TEXT, relief="flat", bd=0, 
                         image=icon, compound="left",
                         anchor="center", padx=10, pady=12, cursor="hand2")
-        btn.configure(command=lambda b=btn, tid=tab_id: self._switch_tab(tid, b))
-        
-        # Hover effect
-        btn.bind("<Enter>", lambda e, b=btn: self._on_hover(b))
-        btn.bind("<Leave>", lambda e, b=btn: self._on_leave(b))
-        
-        return btn
         btn.configure(command=lambda b=btn, tid=tab_id: self._switch_tab(tid, b))
         
         # Hover effect

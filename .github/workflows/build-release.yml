@@ -1,0 +1,151 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Job 1: Build Windows
+  # ─────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build Windows exe
+        run: pyinstaller POD_Tools.spec --noconfirm
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: dist/POD_Tools.exe
+
+  # ─────────────────────────────────────────────
+  # Job 2: Build macOS
+  # ─────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build macOS app
+        run: pyinstaller POD_Tools_mac.spec --noconfirm
+
+      - name: Zip macOS app
+        run: ditto -c -k --sequesterRsrc --keepParent "dist/POD Tools.app" "dist/POD_Tools_mac.zip"
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: dist/POD_Tools_mac.zip
+
+  # ─────────────────────────────────────────────
+  # Job 3: Create Release & Update version.json
+  # ─────────────────────────────────────────────
+  release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: ./artifacts/windows
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+          path: ./artifacts/macos
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Calculate SHA256 checksums
+        id: checksums
+        run: |
+          WIN_SHA256=$(sha256sum ./artifacts/windows/POD_Tools.exe | awk '{print $1}')
+          MAC_SHA256=$(sha256sum ./artifacts/macos/POD_Tools_mac.zip | awk '{print $1}')
+          echo "WIN_SHA256=$WIN_SHA256" >> $GITHUB_OUTPUT
+          echo "MAC_SHA256=$MAC_SHA256" >> $GITHUB_OUTPUT
+          echo "Windows SHA256: $WIN_SHA256"
+          echo "macOS SHA256: $MAC_SHA256"
+
+      - name: Update version.json
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          WIN_SHA=${{ steps.checksums.outputs.WIN_SHA256 }}
+          MAC_SHA=${{ steps.checksums.outputs.MAC_SHA256 }}
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+
+          cat > version.json << EOF
+          {
+            "version": "${VERSION}",
+            "release_notes": "Version ${VERSION}",
+            "windows": {
+              "download_url": "https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/POD_Tools.exe",
+              "sha256": "${WIN_SHA}"
+            },
+            "macos": {
+              "download_url": "https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/POD_Tools_mac.zip",
+              "sha256": "${MAC_SHA}"
+            }
+          }
+          EOF
+
+          # Xóa khoảng trắng thừa ở đầu dòng
+          sed -i 's/^          //' version.json
+
+          echo "=== Updated version.json ==="
+          cat version.json
+
+      - name: Commit & push version.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          git commit -m "ci: update version.json for ${{ steps.get_version.outputs.VERSION }}"
+          git push origin HEAD:main
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "POD Tools v${{ steps.get_version.outputs.VERSION }}"
+          body: "Version ${{ steps.get_version.outputs.VERSION }}"
+          files: |
+            ./artifacts/windows/POD_Tools.exe
+            ./artifacts/macos/POD_Tools_mac.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

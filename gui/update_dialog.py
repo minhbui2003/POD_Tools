@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import os
-import sys
+import webbrowser
 
 from core import updater
 
@@ -14,6 +13,7 @@ class UpdateDialog(tk.Toplevel):
         self.release_notes = release_notes
         self.download_url = download_url
         self.sha256 = sha256
+        self.is_manual_update = updater.is_macos()
         
         self.title("Phát hiện bản cập nhật mới")
         self.geometry("450x300")
@@ -55,7 +55,8 @@ class UpdateDialog(tk.Toplevel):
         self.btn_frame = tk.Frame(self, bg=BG_COLOR)
         self.btn_frame.pack(side="bottom", fill="x", pady=20)
         
-        self.btn_update = tk.Button(self.btn_frame, text="Cập nhật ngay", font=("Segoe UI", 10, "bold"),
+        update_text = "Tai ban macOS" if self.is_manual_update else "Cập nhật ngay"
+        self.btn_update = tk.Button(self.btn_frame, text=update_text, font=("Segoe UI", 10, "bold"),
                                    bg="#27ae60", fg="white", relief="flat", padx=15, pady=5, cursor="hand2",
                                    command=self.start_update)
         self.btn_update.pack(side="left", expand=True)
@@ -109,6 +110,17 @@ class UpdateDialog(tk.Toplevel):
         self.after(0, show_error)
 
     def start_update(self):
+        if self.is_manual_update:
+            webbrowser.open(self.download_url)
+            messagebox.showinfo(
+                "Cap nhat macOS",
+                "File cap nhat macOS da duoc mo trong trinh duyet.\n"
+                "Hay tai file zip, thoat app hien tai, giai nen va thay bang ban moi.",
+                parent=self
+            )
+            self.destroy()
+            return
+
         """Người dùng bấm nút cập nhật"""
         self.btn_update.config(state="disabled", text="Đang tải...")
         self.btn_cancel.config(state="disabled")

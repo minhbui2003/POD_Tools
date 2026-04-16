@@ -6,6 +6,14 @@ from core.config import *
 from core.wanderprints_scraper import Downloader
 from core.gossby_scraper import gs_scrape_single_product, gs_scrape_personalized_data
 from core.collection_scraper import fetch_collection, detect_site
+from core.platform_utils import get_asset_path, get_default_dialog_dir, get_user_config_dir, open_path
+
+OUTPUT_PLACEHOLDER = "Chon thu muc luu truoc khi chay"
+
+
+def _is_empty_output_folder(value):
+    value = value.strip()
+    return not value or value == OUTPUT_PLACEHOLDER or "Tool" in value
 
 # ─────────────────────────────────────────────
 # Encrypt / Decrypt helpers (XOR + base64)
@@ -122,20 +130,20 @@ class WanderprintsTab(tk.Frame):
         folder_frame.pack(fill="x", padx=16, pady=(4, 4), ipadx=4, ipady=4)
         tk.Label(folder_frame, text="Thư mục lưu:", bg="#ffffff",
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left")
-        self.folder_var = tk.StringVar(value="Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại")
+        self.folder_var = tk.StringVar(value=OUTPUT_PLACEHOLDER)
         wp_entry = tk.Entry(folder_frame, textvariable=self.folder_var,
                             bg="#fff", fg="#000000", insertbackground="#222",
                             relief="solid", font=("Segoe UI", 10), bd=1)
         wp_entry.pack(side="left", fill="x", expand=True, padx=(8, 6))
         
         def wp_focus_in(e):
-            if self.folder_var.get() == "Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại":
+            if self.folder_var.get() == OUTPUT_PLACEHOLDER:
                 self.folder_var.set("")
                 wp_entry.config(fg="#000000")
                 
         def wp_focus_out(e):
             if not self.folder_var.get():
-                self.folder_var.set("Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại")
+                self.folder_var.set(OUTPUT_PLACEHOLDER)
                 wp_entry.config(fg="#000000")
                 
         wp_entry.bind("<FocusIn>", wp_focus_in)
@@ -169,9 +177,7 @@ class WanderprintsTab(tk.Frame):
 
 
     def _browse_folder(self):
-        _tool_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) \
-                    else os.path.dirname(os.path.abspath(__file__))
-        path = filedialog.askdirectory(title="Chọn thư mục lưu", initialdir=_tool_dir)
+        path = filedialog.askdirectory(title="Chọn thư mục lưu", initialdir=get_default_dialog_dir())
         if path:
             self.folder_var.set(path)
             self.folder_entry.config(fg="#000000")
@@ -209,8 +215,14 @@ class WanderprintsTab(tk.Frame):
             self._log("[!] Vui lòng chọn ít nhất 1 loại dữ liệu."); return
         do_desc   = self.var_desc.get()
         folder = self.folder_var.get().strip()
-        if folder == "Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại": folder = ""
         base_dir = folder if folder else None
+        if _is_empty_output_folder(folder):
+            messagebox.showwarning("Thieu thu muc luu", "Vui long chon thu muc luu truoc khi bat dau.")
+            self.is_running = False
+            self.btn.configure(state="normal", bg="#2563eb", fg="#ffffff")
+            self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
+            self.status_var.set("San sang")
+            return
         threading.Thread(target=self._worker, args=(url, do_media, do_swatch, do_desc, base_dir), daemon=True).start()
 
     def _stop(self):
@@ -242,11 +254,7 @@ class WanderprintsTab(tk.Frame):
             _mm, _ss = divmod(int(_elapsed), 60)
             if base_dir:
                 _self_mod.WP_OUTPUT_ROOT = orig
-            if getattr(sys, 'frozen', False):
-                base_path = os.path.dirname(sys.executable)
-            else:
-                base_path = os.path.dirname(os.path.abspath(__file__))
-            save_path = base_dir or os.path.join(base_path, "download_images")
+            save_path = base_dir
             self.after(0, self._done, dl.total_ok, dl.total_fail, save_path, _mm, _ss)
         except Exception as e:
             self._log(f"[ERROR] {e}")
@@ -262,9 +270,8 @@ class WanderprintsTab(tk.Frame):
         if ok > 0 and save_path:
             res = messagebox.askyesno("Hoàn thành",
                                       f"Đã xong! (⏱ {elapsed_m:02d}:{elapsed_s:02d})\nFile lưu tại:\n{save_path}\n\nMở thư mục?")
-            if res and os.name == 'nt':
-                import subprocess
-                subprocess.Popen(f'explorer "{os.path.abspath(save_path)}"', shell=True)
+            if res:
+                open_path(save_path)
 
 
 # ─────────────────────────────────────────────
@@ -329,20 +336,20 @@ class GossbyTab(tk.Frame):
         folder_frame.pack(fill="x", padx=16, pady=(4, 6), ipadx=4, ipady=4)
         tk.Label(folder_frame, text="Thư mục lưu:", bg="#ffffff",
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left")
-        self.folder_var = tk.StringVar(value="Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại")
+        self.folder_var = tk.StringVar(value=OUTPUT_PLACEHOLDER)
         gs_entry = tk.Entry(folder_frame, textvariable=self.folder_var,
                             bg="#fff", fg="#000000", insertbackground="#222",
                             relief="solid", font=("Segoe UI", 10), bd=1)
         gs_entry.pack(side="left", fill="x", expand=True, padx=(8, 6))
         
         def gs_focus_in(e):
-            if self.folder_var.get() == "Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại":
+            if self.folder_var.get() == OUTPUT_PLACEHOLDER:
                 self.folder_var.set("")
                 gs_entry.config(fg="#000000")
                 
         def gs_focus_out(e):
             if not self.folder_var.get():
-                self.folder_var.set("Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại")
+                self.folder_var.set(OUTPUT_PLACEHOLDER)
                 gs_entry.config(fg="#000000")
                 
         gs_entry.bind("<FocusIn>", gs_focus_in)
@@ -371,9 +378,7 @@ class GossbyTab(tk.Frame):
 
 
     def _browse_folder(self):
-        _tool_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) \
-                    else os.path.dirname(os.path.abspath(__file__))
-        path = filedialog.askdirectory(title="Chọn thư mục lưu", initialdir=_tool_dir)
+        path = filedialog.askdirectory(title="Chọn thư mục lưu", initialdir=get_default_dialog_dir())
         if path:
             self.folder_var.set(path)
             self.folder_entry.config(fg="#000000")
@@ -414,8 +419,14 @@ class GossbyTab(tk.Frame):
         self.is_running = True
         self.status_var.set("Đang xử lý...")
         folder = self.folder_var.get().strip()
-        if folder == "Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại": folder = ""
         base_dir = folder if folder else None
+        if _is_empty_output_folder(folder):
+            messagebox.showwarning("Thieu thu muc luu", "Vui long chon thu muc luu truoc khi bat dau.")
+            self.is_running = False
+            self.btn.configure(state="normal", bg="#2563eb", fg="#ffffff")
+            self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
+            self.status_var.set("San sang")
+            return
         threading.Thread(target=self._worker,
                          args=(url, self.var_variants.get(), self.var_layers.get(), self.var_cliparts.get(), self.var_desc.get(), base_dir),
                          daemon=True).start()
@@ -443,11 +454,7 @@ class GossbyTab(tk.Frame):
             if do_layers:
                 self._log("\n[--- ĐANG CÀO PERSONALIZED LAYERS ---]")
                 gs_scrape_personalized_data(url, do_cliparts=do_cliparts, base_dir=base_dir, is_running_check=lambda: getattr(self, "is_running", False))
-            if getattr(sys, 'frozen', False):
-                base_path = os.path.dirname(sys.executable)
-            else:
-                base_path = os.path.dirname(os.path.abspath(__file__))
-            save_path = base_dir or os.path.join(base_path, "download_images")
+            save_path = base_dir
             _elapsed = time.time() - _t0
             _mm, _ss = divmod(int(_elapsed), 60)
             self._log(f"\n✅ Hoàn tất! File lưu tại: {save_path}")
@@ -470,9 +477,8 @@ class GossbyTab(tk.Frame):
             self.status_var.set(f"✅ Hoàn tất!{time_str}")
             res = messagebox.askyesno("Hoàn thành",
                                       f"Đã xong!{time_str}\nFile lưu tại:\n{save_path}\n\nMở thư mục?")
-            if res and os.name == 'nt':
-                import subprocess
-                subprocess.Popen(f'explorer "{os.path.abspath(save_path)}"', shell=True)
+            if res:
+                open_path(save_path)
         else:
             self.status_var.set("❌ Có lỗi xảy ra")
 
@@ -549,19 +555,19 @@ class CollectionTab(tk.Frame):
         folder_frame.pack(fill="x", padx=16, pady=(4, 4), ipadx=4, ipady=4)
         tk.Label(folder_frame, text="Thư mục lưu:", bg="#ffffff",
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left")
-        self.folder_var = tk.StringVar(value="Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại")
+        self.folder_var = tk.StringVar(value=OUTPUT_PLACEHOLDER)
         col_entry = tk.Entry(folder_frame, textvariable=self.folder_var,
                              bg="#fff", fg="#000000", insertbackground="#222",
                              relief="solid", font=("Segoe UI", 10), bd=1)
         col_entry.pack(side="left", fill="x", expand=True, padx=(8, 6))
 
         def col_focus_in(e):
-            if self.folder_var.get() == "Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại":
+            if self.folder_var.get() == OUTPUT_PLACEHOLDER:
                 self.folder_var.set("")
                 col_entry.config(fg="#000000")
         def col_focus_out(e):
             if not self.folder_var.get():
-                self.folder_var.set("Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại")
+                self.folder_var.set(OUTPUT_PLACEHOLDER)
                 col_entry.config(fg="#000000")
         col_entry.bind("<FocusIn>", col_focus_in)
         col_entry.bind("<FocusOut>", col_focus_out)
@@ -587,9 +593,7 @@ class CollectionTab(tk.Frame):
 
 
     def _browse_folder(self):
-        _tool_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) \
-                    else os.path.dirname(os.path.abspath(__file__))
-        path = filedialog.askdirectory(title="Chọn thư mục lưu", initialdir=_tool_dir)
+        path = filedialog.askdirectory(title="Chọn thư mục lưu", initialdir=get_default_dialog_dir())
         if path:
             self.folder_var.set(path)
             self.folder_entry.config(fg="#000000")
@@ -621,8 +625,14 @@ class CollectionTab(tk.Frame):
         limit_str = self.limit_var.get()
         limit = int(limit_str)
         folder = self.folder_var.get().strip()
-        if folder == "Bỏ trống nếu lưu cùng thư mục chứa Tool hiện tại": folder = ""
         base_dir = folder if folder else None
+        if _is_empty_output_folder(folder):
+            messagebox.showwarning("Thieu thu muc luu", "Vui long chon thu muc luu truoc khi bat dau.")
+            self.is_running = False
+            self.btn.configure(state="normal", bg="#4f46e5", fg="#ffffff")
+            self.btn_stop.configure(state="disabled", bg="#e5e7eb", fg="#9ca3af")
+            self.status_var.set("San sang")
+            return
         threading.Thread(target=self._worker, args=(url, limit, base_dir), daemon=True).start()
 
     def _worker(self, collection_url, limit, base_dir):
@@ -660,7 +670,6 @@ class CollectionTab(tk.Frame):
                            f"Đang xử lý {idx}/{total}: {p_title[:50]}...")
                 try:
                     if site == "gossby":
-                        import download_images_gui as _self_mod
                         if do_variants:
                             gs_scrape_single_product(p_url, base_dir=base_dir)
                         if do_layers:
@@ -683,11 +692,7 @@ class CollectionTab(tk.Frame):
 
             _elapsed = time.time() - _t0
             _mm, _ss = divmod(int(_elapsed), 60)
-            if getattr(sys, 'frozen', False):
-                bp = os.path.dirname(sys.executable)
-            else:
-                bp = os.path.dirname(os.path.abspath(__file__))
-            save_path = base_dir or os.path.join(bp, "download_images")
+            save_path = base_dir
             self._log(f"\n✅ Hoàn tất collection! Thành công: {ok_count} | Thất bại: {fail_count}")
             self._log(f"⏱ Thời gian: {_mm:02d}:{_ss:02d}")
             self.after(0, self._done_collection, True, ok_count, fail_count, save_path, _mm, _ss)
@@ -707,9 +712,8 @@ class CollectionTab(tk.Frame):
                                       f"Collection xong!{time_str}\n"
                                       f"Thành công: {ok} | Thất bại: {fail}\n"
                                       f"Lưu tại: {save_path}\n\nMở thư mục?")
-            if res and os.name == 'nt':
-                import subprocess
-                subprocess.Popen(f'explorer "{os.path.abspath(save_path)}"', shell=True)
+            if res:
+                open_path(save_path)
         else:
             self.status_var.set("❌ Không lấy được sản phẩm")
 
@@ -745,11 +749,7 @@ class CrawlTab(tk.Frame):
                  font=("Segoe UI", 9, "bold")).pack(side="left")
         # ── Load saved Gemini key ──
         self.gemini_key_var = tk.StringVar()
-        _config_file = os.path.join(
-            os.path.dirname(sys.executable) if getattr(sys, 'frozen', False)
-            else os.path.dirname(os.path.abspath(__file__)),
-            "pod_crawl_config.json"
-        )
+        _config_file = os.path.join(get_user_config_dir(), "pod_crawl_config.json")
         if os.path.exists(_config_file):
             try:
                 with open(_config_file, 'r', encoding='utf-8') as _f:
@@ -798,17 +798,10 @@ class CrawlTab(tk.Frame):
         toggle_btn.pack(side="left")
         def _open_guide():
             try:
-                if getattr(sys, 'frozen', False):
-                    pdf_path = os.path.join(sys._MEIPASS, "guid_get_gemini_key.pdf")
-                else:
-                    pdf_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "guid_get_gemini_key.pdf")
+                pdf_path = get_asset_path("guid_get_gemini_key.pdf")
                 
                 if os.path.exists(pdf_path):
-                    if os.name == 'nt':
-                        os.startfile(pdf_path)
-                    else:
-                        import subprocess
-                        subprocess.Popen(['xdg-open', pdf_path])
+                    open_path(pdf_path)
                 else:
                     messagebox.showerror("Lỗi", "Không tìm thấy file hướng dẫn!")
             except Exception as e:

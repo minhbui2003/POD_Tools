@@ -11,6 +11,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 from datetime import datetime
+from core.platform_utils import open_path
 
 try:
     from PIL import Image, ImageTk
@@ -492,10 +493,8 @@ class ResizeTab(tk.Frame):
 
         out_base = self.output_folder.get().strip()
         if not out_base:
-            if getattr(sys, 'frozen', False):
-                out_base = os.path.dirname(sys.executable)
-            else:
-                out_base = os.path.dirname(os.path.abspath(__file__))
+            messagebox.showwarning("Thieu thu muc xuat", "Vui long chon thu muc luu anh truoc khi bat dau.")
+            return
 
         # Determine target size strategy
         if self.scale_mode.get() == "custom":
@@ -654,14 +653,7 @@ class ResizeTab(tk.Frame):
             
             if messagebox.askyesno("✅ Hoàn thành", msg):
                 try:
-                    import platform
-                    import subprocess
-                    if platform.system() == "Windows":
-                        os.startfile(out_base)
-                    elif platform.system() == "Darwin":
-                        subprocess.Popen(["open", out_base])
-                    else:
-                        subprocess.Popen(["xdg-open", out_base])
+                    open_path(out_base)
                 except Exception as e:
                     self._log(f"Lỗi khi mở thư mục: {e}", "err")
 

@@ -7,7 +7,7 @@ build/
 dist/
 
 # PyInstaller
-*.spec
+# *.spec  # Tracked: needed for CI/CD builds
 
 # OS
 .DS_Store
