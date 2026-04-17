@@ -9,8 +9,21 @@ import threading
 import hashlib
 import subprocess
 import shutil
+import ssl
 
 from core import config
+
+
+def _https_context():
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
+
+
+def _urlopen(req, timeout):
+    return urllib.request.urlopen(req, timeout=timeout, context=_https_context())
 
 def is_frozen():
     """Kiểm tra xem app đang chạy bằng file exe (đã build) hay đang chạy source code python"""
@@ -126,7 +139,7 @@ def check_for_updates(
                 }
             )
             # Timeout 5 giây để không treo luồng ngầm
-            with urllib.request.urlopen(req, timeout=5) as response:
+            with _urlopen(req, timeout=15) as response:
                 if response.status == 200:
                     data = json.loads(response.read().decode('utf-8'))
 
@@ -188,7 +201,7 @@ def download_and_install_update(download_url, expected_sha256, progress_callback
                 headers={"User-Agent": "POD-Tools-Updater/1.0"}
             )
             
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with _urlopen(req, timeout=30) as response:
                 total_size_header = response.getheader('Content-Length')
                 try:
                     total_size = int(total_size_header.strip()) if total_size_header else 0
