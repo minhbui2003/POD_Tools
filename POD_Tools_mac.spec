@@ -10,6 +10,7 @@ a = Analysis(
         ('assets/icon_resize.png', 'assets'),
         ('assets/guid_get_gemini_key.pdf', 'assets'),
         ('assets/checkmark.svg', 'assets'),
+        ('assets/folder.svg', 'assets'),
     ],
     hiddenimports=[
         'qt_gui.app',

@@ -203,7 +203,7 @@ class ProductTab(QWidget):
         self.folder_entry = QLineEdit()
         self.folder_entry.setPlaceholderText(OUTPUT_PLACEHOLDER)
         frow.addWidget(self.folder_entry, 1)
-        pick = make_button("Chọn", "primary")
+        pick = make_button("Chọn", "primary", icon_name="folder.svg")
         pick.clicked.connect(self.browse_folder)
         frow.addWidget(pick)
         folder.addLayout(frow)

@@ -2,8 +2,8 @@ import os
 import sys
 from contextlib import contextmanager
 
-from PySide6.QtCore import QObject, QThread, Qt
-from PySide6.QtGui import QTextCharFormat, QColor, QTextCursor
+from PySide6.QtCore import QObject, QSize, QThread, Qt
+from PySide6.QtGui import QColor, QIcon, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -14,11 +14,17 @@ from PySide6.QtWidgets import (
 )
 
 from qt_gui import styles
+from core.platform_utils import get_asset_path
 
 
-def make_button(text, kind="secondary"):
+def make_button(text, kind="secondary", icon_name=None):
     button = QPushButton(text)
     button.setCursor(Qt.CursorShape.PointingHandCursor)
+    if icon_name:
+        icon_path = get_asset_path(icon_name)
+        if os.path.exists(icon_path):
+            button.setIcon(QIcon(icon_path))
+            button.setIconSize(QSize(18, 18))
     if kind == "start":
         button.setProperty("startButton", True)
     elif kind == "primary":

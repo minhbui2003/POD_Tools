@@ -1,6 +1,6 @@
 {
-  "version": "1.0.1",
-  "release_notes": "Version 1.0.1",
+  "version": "1.0.2",
+  "release_notes": "Version 1.0.2",
   "windows": {
     "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.0.1/POD_Tools.exe",
     "sha256": "432ec29071be6b8df0a8b6798eeac375483b8a5cb8c7a1813861ed7101311140"
