@@ -1,6 +1,6 @@
 import os
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QFrame,
@@ -112,7 +112,10 @@ class PODToolsWindow(QMainWindow):
         def on_update_found(new_version, release_notes, download_url, sha256):
             self.update_available.emit(new_version, release_notes, download_url, sha256)
 
-        updater.check_for_updates(on_update_found)
+        updater.check_for_updates(
+            on_update_found,
+            dispatch_callback=lambda fn, *args: QTimer.singleShot(0, lambda: fn(*args)),
+        )
 
     def _show_update_dialog(self, new_version, release_notes, download_url, sha256):
         dialog = UpdateDialog(self, new_version, release_notes, download_url, sha256)

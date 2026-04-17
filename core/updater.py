@@ -1,6 +1,8 @@
 import os
 import sys
 import json
+import glob
+import time
 import urllib.request
 import urllib.error
 import threading
@@ -241,6 +243,50 @@ def download_and_install_update(download_url, expected_sha256, progress_callback
 
     thread = threading.Thread(target=_download, daemon=True)
     thread.start()
+
+def cleanup_update_artifacts():
+    """Xoa file tam con sot lai sau khi app da khoi dong lai thanh cong."""
+    if not is_frozen():
+        return
+
+    exe_path = sys.executable
+    exe_dir = os.path.dirname(exe_path)
+    exe_name = os.path.basename(exe_path)
+    max_age_seconds = 60 * 60
+    now = time.time()
+
+    temp_dir = os.environ.get("TEMP", exe_dir) if is_windows() else os.environ.get("TMPDIR", "/tmp")
+    stale_paths = [
+        os.path.join(exe_dir, f"{exe_name}.bak"),
+        os.path.join(exe_dir, f"{exe_name}.new"),
+        os.path.join(exe_dir, "updater.bat"),
+        os.path.join(exe_dir, "updater.sh"),
+        os.path.join(temp_dir, f"{exe_name}.download"),
+    ]
+
+    for stale_path in stale_paths:
+        try:
+            if os.path.exists(stale_path) and now - os.path.getmtime(stale_path) <= max_age_seconds:
+                os.remove(stale_path)
+        except Exception:
+            pass
+
+    safe_suffixes = (".tmp", ".crdownload", ".download")
+    safe_prefixes = (exe_name, "updater", "Unconfirmed")
+
+    for folder in {exe_dir, temp_dir}:
+        try:
+            for file_path in glob.glob(os.path.join(folder, "*")):
+                file_name = os.path.basename(file_path)
+                lower_name = file_name.lower()
+                if lower_name.endswith(safe_suffixes) and file_name.startswith(safe_prefixes):
+                    try:
+                        if now - os.path.getmtime(file_path) <= max_age_seconds:
+                            os.remove(file_path)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
 def _create_windows_update_script(exe_dir, exe_path, exe_name, new_exe_path):
     """Tạo batch script cập nhật cho Windows"""
