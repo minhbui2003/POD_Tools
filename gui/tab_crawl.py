@@ -33,7 +33,48 @@ def _button_style(bg, border):
         "highlightthickness": 1,
         "highlightbackground": border,
         "highlightcolor": border,
+        "takefocus": 0,
     }
+
+
+def _check_toggle(parent, text, variable, font=("Segoe UI", 10), state="normal"):
+    return tk.Checkbutton(
+        parent,
+        text=text,
+        variable=variable,
+        indicatoron=False,
+        selectcolor=BUTTON_PRIMARY_BG,
+        font=font,
+        cursor="hand2",
+        padx=8,
+        pady=3,
+        state=state,
+        **_button_style(BUTTON_SECONDARY_BG, BUTTON_SECONDARY_BORDER)
+    )
+
+
+def _radio_toggle(parent, text, variable, value, command=None, font=("Segoe UI", 10)):
+    def _select(_event=None):
+        variable.set(value)
+        if command:
+            command()
+        return "break"
+
+    widget = tk.Radiobutton(
+        parent,
+        text=text,
+        variable=variable,
+        value=value,
+        indicatoron=False,
+        selectcolor=BUTTON_PRIMARY_BG,
+        font=font,
+        cursor="hand2",
+        padx=8,
+        pady=3,
+        **_button_style(BUTTON_SECONDARY_BG, BUTTON_SECONDARY_BORDER)
+    )
+    widget.bind("<Button-1>", _select)
+    return widget
 
 
 def _is_empty_output_folder(value):
@@ -152,12 +193,9 @@ class WanderprintsTab(tk.Frame):
         self.var_desc = tk.BooleanVar(value=False)
         tk.Label(chk_frame, text="Dữ liệu:", bg="#ffffff",
                     fg="#000000", font=("Segoe UI", 10)).pack(side="left", padx=(0, 6))
-        tk.Checkbutton(chk_frame, text="Variants (ảnh sản phẩm)", variable=self.var_media,
-                    bg="#ffffff", font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
-        tk.Checkbutton(chk_frame, text="Layers (ảnh cá nhân hóa)", variable=self.var_swatch,
-                    bg="#ffffff", font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
-        self.chk_desc = tk.Checkbutton(chk_frame, text="Mô tả mới cho sản phẩm", variable=self.var_desc,
-                                       bg="#ffffff", font=("Segoe UI", 10), state="disabled")
+        _check_toggle(chk_frame, "Variants (ảnh sản phẩm)", self.var_media).pack(side="left", padx=(0, 16))
+        _check_toggle(chk_frame, "Layers (ảnh cá nhân hóa)", self.var_swatch).pack(side="left", padx=(0, 16))
+        self.chk_desc = _check_toggle(chk_frame, "Mô tả mới cho sản phẩm", self.var_desc, state="disabled")
         self.chk_desc.pack(side="left")
 
         # Folder row with browse button
@@ -352,14 +390,10 @@ class GossbyTab(tk.Frame):
         self.var_desc     = tk.BooleanVar(value=False)
         tk.Label(chk_frame, text="Dữ liệu:", bg="#ffffff",
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left", padx=(0, 6))
-        tk.Checkbutton(chk_frame, text="Variants (ảnh sản phẩm)", variable=self.var_variants,
-                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
-        tk.Checkbutton(chk_frame, text="Layers (ảnh cá nhân hóa)", variable=self.var_layers,
-                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
-        tk.Checkbutton(chk_frame, text="Mặc định (Cliparts)", variable=self.var_cliparts,
-                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
-        self.chk_desc = tk.Checkbutton(chk_frame, text="Mô tả mới cho sản phẩm", variable=self.var_desc,
-                                       bg="#ffffff", font=("Segoe UI", 10), state="disabled")
+        _check_toggle(chk_frame, "Variants (ảnh sản phẩm)", self.var_variants).pack(side="left", padx=(0, 16))
+        _check_toggle(chk_frame, "Layers (ảnh cá nhân hóa)", self.var_layers).pack(side="left", padx=(0, 16))
+        _check_toggle(chk_frame, "Mặc định (Cliparts)", self.var_cliparts).pack(side="left", padx=(0, 16))
+        self.chk_desc = _check_toggle(chk_frame, "Mô tả mới cho sản phẩm", self.var_desc, state="disabled")
         self.chk_desc.pack(side="left")
 
         # Custom folder row with browse button
@@ -470,7 +504,7 @@ class GossbyTab(tk.Frame):
             self.progress.configure(value=0)
             return
         self.progress.configure(value=0)
-        self.progress.start(12)
+        self.progress.start(80)
         threading.Thread(target=self._worker,
                          args=(url, self.var_variants.get(), self.var_layers.get(), self.var_cliparts.get(), self.var_desc.get(), base_dir),
                          daemon=True).start()
@@ -574,9 +608,7 @@ class CollectionTab(tk.Frame):
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left", padx=(0, 6))
         self.limit_var = tk.StringVar(value="10")
         for val, txt in [("10", "10"), ("20", "20"), ("50", "50"), ("0", "Tất cả")]:
-            tk.Radiobutton(opt_frame, text=txt, variable=self.limit_var, value=val,
-                           bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10),
-                           activebackground="#f0f0f5").pack(side="left", padx=(0, 12))
+            _radio_toggle(opt_frame, txt, self.limit_var, val).pack(side="left", padx=(0, 12))
 
         # Checkboxes — what to download per product
         chk_frame = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)
@@ -587,14 +619,10 @@ class CollectionTab(tk.Frame):
         self.var_layers = tk.BooleanVar(value=True)
         self.var_cliparts = tk.BooleanVar(value=True)
         self.var_save_json = tk.BooleanVar(value=False)
-        tk.Checkbutton(chk_frame, text="Variants (ảnh)", variable=self.var_variants,
-                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 12))
-        tk.Checkbutton(chk_frame, text="Layers (cá nhân hóa)", variable=self.var_layers,
-                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 12))
-        tk.Checkbutton(chk_frame, text="Cliparts", variable=self.var_cliparts,
-                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 12))
-        tk.Checkbutton(chk_frame, text="Lưu JSON config", variable=self.var_save_json,
-                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left")
+        _check_toggle(chk_frame, "Variants (ảnh)", self.var_variants).pack(side="left", padx=(0, 12))
+        _check_toggle(chk_frame, "Layers (cá nhân hóa)", self.var_layers).pack(side="left", padx=(0, 12))
+        _check_toggle(chk_frame, "Cliparts", self.var_cliparts).pack(side="left", padx=(0, 12))
+        _check_toggle(chk_frame, "Lưu JSON config", self.var_save_json).pack(side="left")
 
         # Folder row
         folder_frame = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)

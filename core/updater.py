@@ -78,15 +78,29 @@ def _parse_update_data(data):
 
     return (new_version_str, download_url, sha256, release_notes)
 
-def check_for_updates(root, on_update_found_callback):
+def check_for_updates(root_or_callback, on_update_found_callback=None, dispatch_callback=None):
     """
     Chạy ngầm kiểm tra cập nhật.
-    root: Đối tượng Tkinter chính để gọi hàm callback về main thread (bằng root.after).
-    on_update_found_callback: Hàm nhận (new_version, release_notes, download_url, sha256)
+    Hỗ trợ cả Tkinter cũ và UI khác:
+    - check_for_updates(root, callback): nếu root có after() thì callback chạy qua root.after.
+    - check_for_updates(callback, dispatch_callback=...): dispatch_callback nhận (callback, *args).
     """
     if not is_frozen():
-        print("Dev Mode: Bỏ qua kiểm tra cập nhật tự động.")
+        print("Dev Mode: Skip automatic update check.")
         return
+
+    if on_update_found_callback is None:
+        callback = root_or_callback
+        dispatch = dispatch_callback or (lambda fn, *args: fn(*args))
+    else:
+        root = root_or_callback
+        callback = on_update_found_callback
+        if dispatch_callback:
+            dispatch = dispatch_callback
+        elif hasattr(root, "after"):
+            dispatch = lambda fn, *args: root.after(0, fn, *args)
+        else:
+            dispatch = lambda fn, *args: fn(*args)
 
     def _check():
         try:
@@ -117,12 +131,12 @@ def check_for_updates(root, on_update_found_callback):
                             print("Updater: Thieu hoac sai dinh dang SHA256 trong file cap nhat.")
                             return
 
-                        # Cần gọi callback về main thread xử lý UI
-                        root.after(0, on_update_found_callback, new_version_str, release_notes, download_url, sha256)
+                        # Cần dispatch callback về main/UI thread xử lý UI.
+                        dispatch(callback, new_version_str, release_notes, download_url, sha256)
         except urllib.error.URLError:
-            print("Updater: Không có mạng hoặc server không phản hồi.")
+            print("Updater: Network unavailable or server did not respond.")
         except json.JSONDecodeError:
-            print("Updater: File JSON format không hợp lệ.")
+            print("Updater: Invalid JSON format.")
         except Exception as e:
             print(f"Updater error: {e}")
 

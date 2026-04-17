@@ -5,6 +5,8 @@ __pycache__/
 # Build
 build/
 dist/
+build_*/
+dist_*/
 
 # PyInstaller
 # *.spec  # Tracked: needed for CI/CD builds

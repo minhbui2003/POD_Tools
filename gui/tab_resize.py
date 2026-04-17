@@ -62,6 +62,7 @@ def _button_style(bg, border):
         "highlightthickness": 1,
         "highlightbackground": border,
         "highlightcolor": border,
+        "takefocus": 0,
     }
 
 
@@ -154,10 +155,8 @@ class ResizeTab(tk.Frame):
 
         # Radio buttons
         for val, lbl in [("preset", "Nhân theo tỉ lệ (×)"), ("custom", "Nhập kích thước cụ thể"), ("keep", "Giữ nguyên kích thước")]:
-            rb = tk.Radiobutton(mode_frame, text=lbl, variable=self.scale_mode, value=val,
-                                font=FONT_LABEL, fg=TEXT, bg=BG2,
-                                selectcolor=BG3, activebackground=BG2,
-                                command=self._toggle_scale_mode)
+            rb = self._radio_toggle(mode_frame, lbl, self.scale_mode, val,
+                                    command=self._toggle_scale_mode)
             rb.pack(side="left", padx=(10, 5), pady=6)
 
         # Preset row
@@ -212,11 +211,11 @@ class ResizeTab(tk.Frame):
 
         # Letterbox checkbox row (inside custom_row container)
         self.letterbox_row = tk.Frame(row3, bg=BG2)
-        tk.Checkbutton(self.letterbox_row,
-                       text="Giữ tỷ lệ gốc — không kéo dãn",
-                       variable=self.letterbox,
-                       font=FONT_LABEL, fg=ACCENT2, bg=BG2,
-                       selectcolor=BG3, activebackground=BG2).pack(side="left", padx=10, pady=(0, 6))
+        self._check_toggle(
+            self.letterbox_row,
+            "Giữ tỷ lệ gốc — không kéo dãn",
+            self.letterbox
+        ).pack(side="left", padx=10, pady=(0, 6))
 
         # Preview label
         self.size_preview = tk.Label(row3, text="",
@@ -239,18 +238,18 @@ class ResizeTab(tk.Frame):
         # Đã loại bỏ WEBP vì định dạng này không hỗ trợ lưu siêu dữ liệu 300 DPI chuẩn bằng thư viện Pillow.
         formats = ["PNG", "JPG", "BMP", "TIFF"]
         for fmt in formats:
-            rb = tk.Radiobutton(fmt_frame, text=fmt, variable=self.output_format, value=fmt,
-                                font=FONT_LABEL, fg=TEXT, bg=BG2,
-                                selectcolor=BG3, activebackground=BG2)
+            rb = self._radio_toggle(fmt_frame, fmt, self.output_format, fmt)
             rb.pack(side="left", padx=(0, 12))
 
         # Skip existing
         skip_frame = tk.Frame(row4, bg=BG2)
         skip_frame.pack(fill="x", padx=14, pady=(0, 8))
-        tk.Checkbutton(skip_frame, text="Bỏ qua ảnh đã scale (tránh làm lại)",
-                       variable=self.skip_existing,
-                       font=FONT_SMALL, fg=TEXT2, bg=BG2,
-                       selectcolor=BG3, activebackground=BG2).pack(side="left")
+        self._check_toggle(
+            skip_frame,
+            "Bỏ qua ảnh đã scale (tránh làm lại)",
+            self.skip_existing,
+            font=FONT_SMALL
+        ).pack(side="left")
 
         # ── 5. LOG ─────────────────────────────────────
         self._section(f, "05", "NHẬT KÝ TIẾN TRÌNH")
@@ -325,6 +324,44 @@ class ResizeTab(tk.Frame):
     # ─────────────────────────────────────────
     #  UI HELPERS
     # ─────────────────────────────────────────
+    def _radio_toggle(self, parent, text, variable, value, command=None, font=FONT_LABEL):
+        def _select(_event=None):
+            variable.set(value)
+            if command:
+                command()
+            return "break"
+
+        widget = tk.Radiobutton(
+            parent,
+            text=text,
+            variable=variable,
+            value=value,
+            indicatoron=False,
+            selectcolor=BUTTON_PRIMARY_BG,
+            font=font,
+            cursor="hand2",
+            padx=10,
+            pady=4,
+            **_button_style(BUTTON_SECONDARY_BG, BUTTON_SECONDARY_BORDER)
+        )
+        widget.bind("<Button-1>", _select)
+        return widget
+
+    def _check_toggle(self, parent, text, variable, font=FONT_LABEL, state="normal"):
+        return tk.Checkbutton(
+            parent,
+            text=text,
+            variable=variable,
+            indicatoron=False,
+            selectcolor=BUTTON_PRIMARY_BG,
+            font=font,
+            cursor="hand2",
+            padx=10,
+            pady=4,
+            state=state,
+            **_button_style(BUTTON_SECONDARY_BG, BUTTON_SECONDARY_BORDER)
+        )
+
     def _section(self, parent, num, title):
         f = tk.Frame(parent, bg=BG)
         f.pack(fill="x", pady=(12, 2))
