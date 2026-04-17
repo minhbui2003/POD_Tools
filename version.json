@@ -1,12 +1,12 @@
 {
-  "version": "1.0.5",
-  "release_notes": "Version 1.0.5",
+  "version": "1.0.6",
+  "release_notes": "Version 1.0.6",
   "windows": {
-    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.0.5/POD_Tools.exe",
-    "sha256": "f935b5d681dedecf2bfa507a018b17a0ec0cf4129b4ddd8188f222de43d553ca"
+    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.0.6/POD_Tools.exe",
+    "sha256": "240624f25d8d5b161dd9a64988695851f36a3a087024d7ba18774a9c8e3723d7"
   },
   "macos": {
-    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.0.5/POD_Tools_mac.zip",
-    "sha256": "0dd44ec4aaf0d91bd9c2b91de75976c7f680a23784337ee74f43ff443072b645"
+    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.0.6/POD_Tools_mac.zip",
+    "sha256": "cda4c506a7079672c83fe6cb96e05d5eb72fe5b7a901a35002c91509f7453255"
   }
 }
