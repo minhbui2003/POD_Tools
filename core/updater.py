@@ -80,14 +80,19 @@ def _parse_update_data(data):
 
     return (new_version_str, download_url, sha256, release_notes)
 
-def check_for_updates(root_or_callback, on_update_found_callback=None, dispatch_callback=None):
+def check_for_updates(
+    root_or_callback,
+    on_update_found_callback=None,
+    dispatch_callback=None,
+    force_check_in_dev=False,
+):
     """
     Chạy ngầm kiểm tra cập nhật.
     Hỗ trợ cả Tkinter cũ và UI khác:
     - check_for_updates(root, callback): nếu root có after() thì callback chạy qua root.after.
     - check_for_updates(callback, dispatch_callback=...): dispatch_callback nhận (callback, *args).
     """
-    if not is_frozen():
+    if not is_frozen() and not force_check_in_dev:
         print("Dev Mode: Skip automatic update check.")
         return
 
@@ -106,9 +111,19 @@ def check_for_updates(root_or_callback, on_update_found_callback=None, dispatch_
 
     def _check():
         try:
+            cache_buster = f"_={int(time.time())}"
+            update_url = (
+                f"{config.UPDATE_JSON_URL}&{cache_buster}"
+                if "?" in config.UPDATE_JSON_URL
+                else f"{config.UPDATE_JSON_URL}?{cache_buster}"
+            )
             req = urllib.request.Request(
-                config.UPDATE_JSON_URL,
-                headers={"User-Agent": "POD-Tools-Updater/1.0"}
+                update_url,
+                headers={
+                    "User-Agent": "POD-Tools-Updater/1.0",
+                    "Cache-Control": "no-cache",
+                    "Pragma": "no-cache",
+                }
             )
             # Timeout 5 giây để không treo luồng ngầm
             with urllib.request.urlopen(req, timeout=5) as response:
