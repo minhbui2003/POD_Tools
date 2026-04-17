@@ -25,21 +25,44 @@ except ImportError:
 #  Màu sắc & font (dark industrial theme)
 # ─────────────────────────────────────────────
 BG        = "#f5f7fa"
-BG2       = "#ffffff"
-BG3       = "#e2e8f0"
-ACCENT    = "#1e3a8a"
-ACCENT2   = "#4f46e5"
+BG2       = "#FFFFFF"
+BG3       = "#EAF0F6"
+ACCENT    = "#355C8A"
+ACCENT2   = "#355C8A"
+BUTTON_PRIMARY_BG = "#DCEEFF"
+BUTTON_PRIMARY_BORDER = "#9FC3E8"
+BUTTON_SECONDARY_BG = "#EAF0F6"
+BUTTON_SECONDARY_BORDER = "#C7D0DB"
+BUTTON_STOP_BG = "#FDE2E2"
+BUTTON_STOP_BORDER = "#E7B3B3"
+BUTTON_START_BG = "#DFF4EA"
+BUTTON_START_BORDER = "#A9D8BD"
 SUCCESS   = "#16a34a"
 WARNING   = "#d97706"
 ERROR     = "#dc2626"
 TEXT      = "#000000"
 TEXT2     = "#000000"
-BORDER    = "#cbd5e1"
+BORDER    = "#D6DCE5"
 
 FONT_TITLE  = ("Segoe UI", 14, "bold")
 FONT_LABEL  = ("Segoe UI", 10)
 FONT_SMALL  = ("Segoe UI", 9)
 FONT_LOG    = ("Consolas", 9)
+
+
+def _button_style(bg, border):
+    return {
+        "bg": bg,
+        "fg": "#000000",
+        "disabledforeground": "#000000",
+        "activebackground": bg,
+        "activeforeground": "#000000",
+        "relief": "solid",
+        "bd": 1,
+        "highlightthickness": 1,
+        "highlightbackground": border,
+        "highlightcolor": border,
+    }
 
 
 class ResizeTab(tk.Frame):
@@ -86,7 +109,17 @@ class ResizeTab(tk.Frame):
 
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
-        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(-1*(e.delta//120), "units"))
+
+        def _on_mousewheel(event):
+            if sys.platform == "darwin":
+                step = -1 if event.delta > 0 else 1
+            else:
+                step = -1 * int(event.delta / 120) if event.delta else 0
+            if step:
+                canvas.yview_scroll(step, "units")
+
+        canvas.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", _on_mousewheel))
+        canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
 
         f = self.scroll_frame  # shorthand
 
@@ -268,24 +301,24 @@ class ResizeTab(tk.Frame):
 
         self.btn_start = tk.Button(btn_frame, text="▶  BẮT ĐẦU SCALE",
                                    font=("Segoe UI", 11, "bold"),
-                                   bg=ACCENT, fg="white", relief="flat",
                                    padx=24, pady=10, cursor="hand2",
-                                   command=self._start)
+                                   command=self._start,
+                                   **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
         self.btn_start.pack(side="left", padx=(4, 8))
 
         self.btn_stop = tk.Button(btn_frame, text="■  DỪNG",
                                   font=("Segoe UI", 11, "bold"),
-                                  bg=ERROR, fg="white", relief="flat",
-                                  disabledforeground="#ffffff",
                                   padx=16, pady=10, cursor="hand2",
                                   state="disabled",
-                                  command=self._stop)
+                                  command=self._stop,
+                                  **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
         self.btn_stop.pack(side="left", padx=4)
 
         tk.Button(btn_frame, text="🗑  XÓA LOG",
-                  font=FONT_SMALL, bg=BG3, fg=TEXT2, relief="flat",
+                  font=FONT_SMALL,
                   padx=10, pady=10, cursor="hand2",
-                  command=self._clear_log).pack(side="right", padx=4)
+                  command=self._clear_log,
+                  **_button_style(BUTTON_SECONDARY_BG, BUTTON_SECONDARY_BORDER)).pack(side="right", padx=4)
 
         self._toggle_scale_mode()
 
@@ -321,9 +354,9 @@ class ResizeTab(tk.Frame):
                          highlightcolor=ACCENT)
         entry.pack(side="left", fill="x", expand=True, ipady=5, padx=(0, 8))
         tk.Button(row, text="Chọn thư mục", font=FONT_SMALL,
-                  bg=ACCENT2, fg="white", relief="flat",
                   padx=10, pady=4, cursor="hand2",
-                  command=cmd).pack(side="right")
+                  command=cmd,
+                  **_button_style(BUTTON_PRIMARY_BG, BUTTON_PRIMARY_BORDER)).pack(side="right")
 
     def _path_picker_source(self, parent, var, label):
         tk.Label(parent, text=label, font=FONT_SMALL, fg=TEXT2,
@@ -338,17 +371,17 @@ class ResizeTab(tk.Frame):
         entry.pack(side="left", fill="x", expand=True, ipady=5, padx=(0, 8))
         
         tk.Button(row, text="📁 Thư mục", font=FONT_SMALL,
-                  bg=ACCENT2, fg="white", relief="flat",
                   padx=10, pady=4, cursor="hand2",
-                  command=self._browse_source).pack(side="right", padx=(4,0))
+                  command=self._browse_source,
+                  **_button_style(BUTTON_PRIMARY_BG, BUTTON_PRIMARY_BORDER)).pack(side="right", padx=(4,0))
         tk.Button(row, text="📄 File(s)", font=FONT_SMALL,
-                  bg="#059669", fg="white", relief="flat",
                   padx=10, pady=4, cursor="hand2",
-                  command=self._browse_source_files).pack(side="right", padx=(4,0))
+                  command=self._browse_source_files,
+                  **_button_style(BUTTON_PRIMARY_BG, BUTTON_PRIMARY_BORDER)).pack(side="right", padx=(4,0))
         tk.Button(row, text="🗑 Xóa", font=FONT_SMALL,
-                  bg="#9ca3af", fg="white", relief="flat",
                   padx=10, pady=4, cursor="hand2",
-                  command=self._clear_selection).pack(side="right")
+                  command=self._clear_selection,
+                  **_button_style(BUTTON_SECONDARY_BG, BUTTON_SECONDARY_BORDER)).pack(side="right")
 
     def _entry(self, parent, var, width=10):
         e = tk.Entry(parent, textvariable=var, font=FONT_LABEL,
@@ -493,7 +526,7 @@ class ResizeTab(tk.Frame):
 
         out_base = self.output_folder.get().strip()
         if not out_base:
-            messagebox.showwarning("Thieu thu muc xuat", "Vui long chon thu muc luu anh truoc khi bat dau.")
+            messagebox.showwarning("Thiếu thư mục xuất", "Vui lòng chọn thư mục lưu ảnh trước khi bắt đầu.")
             return
 
         # Determine target size strategy

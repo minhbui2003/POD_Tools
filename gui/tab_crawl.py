@@ -8,7 +8,32 @@ from core.gossby_scraper import gs_scrape_single_product, gs_scrape_personalized
 from core.collection_scraper import fetch_collection, detect_site
 from core.platform_utils import get_asset_path, get_default_dialog_dir, get_user_config_dir, open_path
 
-OUTPUT_PLACEHOLDER = "Chon thu muc luu truoc khi chay"
+OUTPUT_PLACEHOLDER = "Chọn thư mục lưu ảnh trước khi chạy!"
+PANEL_BG = "#FFFFFF"
+PANEL_BORDER = "#D6DCE5"
+BUTTON_PRIMARY_BG = "#DCEEFF"
+BUTTON_PRIMARY_BORDER = "#9FC3E8"
+BUTTON_SECONDARY_BG = "#EAF0F6"
+BUTTON_SECONDARY_BORDER = "#C7D0DB"
+BUTTON_STOP_BG = "#FDE2E2"
+BUTTON_STOP_BORDER = "#E7B3B3"
+BUTTON_START_BG = "#DFF4EA"
+BUTTON_START_BORDER = "#A9D8BD"
+
+
+def _button_style(bg, border):
+    return {
+        "bg": bg,
+        "fg": "#000000",
+        "disabledforeground": "#000000",
+        "activebackground": bg,
+        "activeforeground": "#000000",
+        "relief": "solid",
+        "bd": 1,
+        "highlightthickness": 1,
+        "highlightbackground": border,
+        "highlightcolor": border,
+    }
 
 
 def _is_empty_output_folder(value):
@@ -20,7 +45,7 @@ def _ask_output_folder(parent):
     parent.update_idletasks()
     return filedialog.askdirectory(
         parent=parent,
-        title="Chon thu muc luu",
+        title="Chọn thư mục lưu",
         initialdir=get_default_dialog_dir(),
         mustexist=True,
     )
@@ -98,7 +123,7 @@ class WanderprintsTab(tk.Frame):
                  font=("Segoe UI", 14, "bold")).pack(fill="x", pady=(10, 6))
 
         # URL row
-        frame_url = tk.Frame(self, bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1)
+        frame_url = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)
         frame_url.pack(fill="x", padx=16, pady=(4, 6), ipadx=4, ipady=4)
         tk.Label(frame_url, text="URL sản phẩm:", bg="#ffffff",
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left")
@@ -109,18 +134,18 @@ class WanderprintsTab(tk.Frame):
         self.entry.pack(side="left", fill="x", expand=True, padx=(8, 8))
         self.entry.bind("<Return>", lambda e: self._start())
         self.btn = tk.Button(frame_url, text="▶  Tải", command=self._start,
-                             bg="#2563eb", fg="#fff", activebackground="#1d4ed8",
-                             font=("Segoe UI", 10, "bold"), relief="flat",
-                             padx=14, pady=4, cursor="hand2")
+                             font=("Segoe UI", 10, "bold"),
+                             padx=14, pady=4, cursor="hand2",
+                             **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
         self.btn.pack(side="left", padx=(0, 8))
         self.btn_stop = tk.Button(frame_url, text="■  Dừng", command=self._stop,
-                                  bg="#ffffff", fg="#000000", activebackground="#b91c1c",
-                                  font=("Segoe UI", 10, "bold"), relief="flat",
-                                  padx=14, pady=4, cursor="hand2", state="disabled")
+                                  font=("Segoe UI", 10, "bold"),
+                                  padx=14, pady=4, cursor="hand2", state="disabled",
+                                  **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
         self.btn_stop.pack(side="left")
 
         # Checkboxes — Variant (media) / Layer (swatch)
-        chk_frame = tk.Frame(self, bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1)
+        chk_frame = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)
         chk_frame.pack(fill="x", padx=16, pady=(4, 4), ipadx=4, ipady=4)
         self.var_media = tk.BooleanVar(value=True)
         self.var_swatch = tk.BooleanVar(value=True)
@@ -136,7 +161,7 @@ class WanderprintsTab(tk.Frame):
         self.chk_desc.pack(side="left")
 
         # Folder row with browse button
-        folder_frame = tk.Frame(self, bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1)
+        folder_frame = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)
         folder_frame.pack(fill="x", padx=16, pady=(4, 4), ipadx=4, ipady=4)
         tk.Label(folder_frame, text="Thư mục lưu:", bg="#ffffff",
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left")
@@ -160,9 +185,9 @@ class WanderprintsTab(tk.Frame):
         wp_entry.bind("<FocusOut>", wp_focus_out)
         self.folder_entry = wp_entry
 
-        tk.Button(folder_frame, text="Chon", command=self._browse_folder,
-                  bg="#e5e7eb", fg="#000000", relief="flat",
-                  font=("Segoe UI", 10), cursor="hand2", padx=6).pack(side="left")
+        tk.Button(folder_frame, text="Chọn", command=self._browse_folder,
+                  font=("Segoe UI", 10), cursor="hand2", padx=6,
+                  **_button_style(BUTTON_PRIMARY_BG, BUTTON_PRIMARY_BORDER)).pack(side="left")
 
         # Status + progress
         self.status_var = tk.StringVar(value="Sẵn sàng")
@@ -171,7 +196,7 @@ class WanderprintsTab(tk.Frame):
         style = ttk.Style(self)
         style.theme_use("clam")
         style.configure("wp.Horizontal.TProgressbar",
-                        troughcolor="#e5e7eb", background="#2563eb", thickness=6)
+                        troughcolor=BUTTON_SECONDARY_BG, background=BUTTON_START_BG, thickness=6)
         self.progress = ttk.Progressbar(self, style="wp.Horizontal.TProgressbar",
                                         mode="determinate", maximum=100)
         self.progress.pack(fill="x", padx=16, pady=(2, 6))
@@ -182,8 +207,8 @@ class WanderprintsTab(tk.Frame):
         self.log_box = _make_log_box(self)
         self.log_box.pack(fill="both", expand=True, padx=16, pady=(0, 4))
         tk.Button(self, text="Xoá log", command=self._clear_log,
-                  bg="#e5e7eb", fg="#000000", relief="flat",
-                  font=("Segoe UI", 8), cursor="hand2").pack(anchor="e", padx=16, pady=(0, 8))
+                  font=("Segoe UI", 8), cursor="hand2",
+                  **_button_style(BUTTON_SECONDARY_BG, BUTTON_SECONDARY_BORDER)).pack(anchor="e", padx=16, pady=(0, 8))
 
 
     def _browse_folder(self):
@@ -214,8 +239,8 @@ class WanderprintsTab(tk.Frame):
             self._log("[!] Vui lòng nhập URL sản phẩm."); return
         if self.btn["state"] == "disabled": return
         self._clear_log()
-        self.btn.configure(state="disabled", bg="#93c5fd", fg="#ffffff")
-        self.btn_stop.configure(state="normal", bg="#dc2626", fg="#ffffff")
+        self.btn.configure(state="disabled", **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
+        self.btn_stop.configure(state="normal", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
         self.is_running = True
         self.status_var.set("Đang xử lý...")
         self.progress["value"] = 0
@@ -227,10 +252,10 @@ class WanderprintsTab(tk.Frame):
         folder = self.folder_var.get().strip()
         base_dir = folder if folder else None
         if _is_empty_output_folder(folder):
-            messagebox.showwarning("Thieu thu muc luu", "Vui long chon thu muc luu truoc khi bat dau.")
+            messagebox.showwarning("Thiếu thư mục lưu", "Vui lòng chọn thư mục lưu trước khi bắt đầu.")
             self.is_running = False
-            self.btn.configure(state="normal", bg="#2563eb", fg="#ffffff")
-            self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
+            self.btn.configure(state="normal", **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
+            self.btn_stop.configure(state="disabled", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
             self.status_var.set("San sang")
             return
         threading.Thread(target=self._worker, args=(url, do_media, do_swatch, do_desc, base_dir), daemon=True).start()
@@ -239,7 +264,9 @@ class WanderprintsTab(tk.Frame):
         self.is_running = False
         self._log("\n[!] Đang gửi lệnh dừng đến tiến trình tải ảnh...")
         self.status_var.set("Đang dừng...")
-        self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
+        self.progress.stop()
+        self.progress.configure(value=0)
+        self.btn_stop.configure(state="disabled", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
 
     def _set_progress(self, current, total):
         pct = int(current / total * 100) if total else 0
@@ -266,8 +293,8 @@ class WanderprintsTab(tk.Frame):
 
     def _done(self, ok, fail, save_path="", elapsed_m=0, elapsed_s=0):
         self.progress["value"] = 100
-        self.btn.configure(state="normal", bg="#2563eb", fg="#ffffff")
-        self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
+        self.btn.configure(state="normal", **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
+        self.btn_stop.configure(state="disabled", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
         self.is_running = False
         time_str = f"  |⏱ {elapsed_m:02d}:{elapsed_s:02d}" if (elapsed_m or elapsed_s) else ""
         self.status_var.set(f"Xong — thành công: {ok}  |  thất bại: {fail}{time_str}")
@@ -295,7 +322,7 @@ class GossbyTab(tk.Frame):
                  font=("Segoe UI", 14, "bold")).pack(fill="x", pady=(10, 6))
 
         # URL row — same style as Wanderprints tab
-        frame_url = tk.Frame(self, bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1)
+        frame_url = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)
         frame_url.pack(fill="x", padx=16, pady=(4, 6), ipadx=4, ipady=4)
         tk.Label(frame_url, text="URL sản phẩm:", bg="#ffffff",
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left")
@@ -306,18 +333,18 @@ class GossbyTab(tk.Frame):
         url_entry.pack(side="left", fill="x", expand=True, padx=(8, 8))
         url_entry.bind("<Return>", lambda e: self._start())
         self.btn = tk.Button(frame_url, text="▶  Tải", command=self._start,
-                             bg="#2563eb", fg="#fff", activebackground="#1d4ed8",
-                             font=("Segoe UI", 10, "bold"), relief="flat",
-                             padx=14, pady=4, cursor="hand2")
+                             font=("Segoe UI", 10, "bold"),
+                             padx=14, pady=4, cursor="hand2",
+                             **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
         self.btn.pack(side="left", padx=(0, 8))
         self.btn_stop = tk.Button(frame_url, text="■  Dừng", command=self._stop,
-                                  bg="#ffffff", fg="#000000", activebackground="#b91c1c",
-                                  font=("Segoe UI", 10, "bold"), relief="flat",
-                                  padx=14, pady=4, cursor="hand2", state="disabled")
+                                  font=("Segoe UI", 10, "bold"),
+                                  padx=14, pady=4, cursor="hand2", state="disabled",
+                                  **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
         self.btn_stop.pack(side="left")
 
         # Checkboxes
-        chk_frame = tk.Frame(self, bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1)
+        chk_frame = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)
         chk_frame.pack(fill="x", padx=16, pady=(4, 4), ipadx=4, ipady=4)
         self.var_variants = tk.BooleanVar(value=True)
         self.var_layers   = tk.BooleanVar(value=True)
@@ -326,17 +353,17 @@ class GossbyTab(tk.Frame):
         tk.Label(chk_frame, text="Dữ liệu:", bg="#ffffff",
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left", padx=(0, 6))
         tk.Checkbutton(chk_frame, text="Variants (ảnh sản phẩm)", variable=self.var_variants,
-                       bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
+                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
         tk.Checkbutton(chk_frame, text="Layers (ảnh cá nhân hóa)", variable=self.var_layers,
-                       bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
+                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
         tk.Checkbutton(chk_frame, text="Mặc định (Cliparts)", variable=self.var_cliparts,
-                       bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
+                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 16))
         self.chk_desc = tk.Checkbutton(chk_frame, text="Mô tả mới cho sản phẩm", variable=self.var_desc,
                                        bg="#ffffff", font=("Segoe UI", 10), state="disabled")
         self.chk_desc.pack(side="left")
 
         # Custom folder row with browse button
-        folder_frame = tk.Frame(self, bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1)
+        folder_frame = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)
         folder_frame.pack(fill="x", padx=16, pady=(4, 6), ipadx=4, ipady=4)
         tk.Label(folder_frame, text="Thư mục lưu:", bg="#ffffff",
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left")
@@ -360,14 +387,21 @@ class GossbyTab(tk.Frame):
         gs_entry.bind("<FocusOut>", gs_focus_out)
         self.folder_entry = gs_entry
 
-        tk.Button(folder_frame, text="Chon", command=self._browse_folder,
-                  bg="#e5e7eb", fg="#000000", relief="flat",
-                  font=("Segoe UI", 10), cursor="hand2", padx=6).pack(side="left")
+        tk.Button(folder_frame, text="Chọn", command=self._browse_folder,
+                  font=("Segoe UI", 10), cursor="hand2", padx=6,
+                  **_button_style(BUTTON_PRIMARY_BG, BUTTON_PRIMARY_BORDER)).pack(side="left")
 
         # Status
         self.status_var = tk.StringVar(value="Sẵn sàng")
         tk.Label(self, textvariable=self.status_var, bg="#f5f7fa", fg="#16a34a",
                  font=("Segoe UI", 9)).pack(anchor="w", padx=18)
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure("gs.Horizontal.TProgressbar",
+                        troughcolor=BUTTON_SECONDARY_BG, background=BUTTON_START_BG, thickness=6)
+        self.progress = ttk.Progressbar(self, style="gs.Horizontal.TProgressbar",
+                                        mode="indeterminate")
+        self.progress.pack(fill="x", padx=16, pady=(2, 6))
 
         # Log
         tk.Label(self, text="Log:", bg="#f5f7fa", fg="#000000",
@@ -377,8 +411,8 @@ class GossbyTab(tk.Frame):
         self.log_box.pack(fill="both", expand=True, padx=16, pady=(0, 4))
         
         tk.Button(self, text="Xoá log", command=self._clear_log,
-                  bg="#e5e7eb", fg="#000000", relief="flat",
-                  font=("Segoe UI", 8), cursor="hand2").pack(anchor="e", padx=16, pady=(0, 8))
+                  font=("Segoe UI", 8), cursor="hand2",
+                  **_button_style(BUTTON_SECONDARY_BG, BUTTON_SECONDARY_BORDER)).pack(anchor="e", padx=16, pady=(0, 8))
 
 
     def _browse_folder(self):
@@ -407,7 +441,9 @@ class GossbyTab(tk.Frame):
         self.is_running = False
         self._log("\n[!] Đang gửi lệnh dừng đến tiến trình tải ảnh...")
         self.status_var.set("Đang dừng...")
-        self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
+        self.progress.stop()
+        self.progress.configure(value=0)
+        self.btn_stop.configure(state="disabled", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
 
 
     def _start(self):
@@ -418,19 +454,23 @@ class GossbyTab(tk.Frame):
             messagebox.showwarning("Lựa chọn", "Chọn ít nhất 1 loại dữ liệu!"); return
         if self.btn["state"] == "disabled": return
         self._clear_log()
-        self.btn.configure(state="disabled", bg="#93c5fd", fg="#ffffff")
-        self.btn_stop.configure(state="normal", bg="#dc2626", fg="#ffffff")
+        self.btn.configure(state="disabled", **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
+        self.btn_stop.configure(state="normal", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
         self.is_running = True
         self.status_var.set("Đang xử lý...")
         folder = self.folder_var.get().strip()
         base_dir = folder if folder else None
         if _is_empty_output_folder(folder):
-            messagebox.showwarning("Thieu thu muc luu", "Vui long chon thu muc luu truoc khi bat dau.")
+            messagebox.showwarning("Thiếu thư mục lưu", "Vui lòng chọn thư mục lưu trước khi bắt đầu.")
             self.is_running = False
-            self.btn.configure(state="normal", bg="#2563eb", fg="#ffffff")
-            self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
-            self.status_var.set("San sang")
+            self.btn.configure(state="normal", **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
+            self.btn_stop.configure(state="disabled", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
+            self.status_var.set("Sẵn sàng")
+            self.progress.stop()
+            self.progress.configure(value=0)
             return
+        self.progress.configure(value=0)
+        self.progress.start(12)
         threading.Thread(target=self._worker,
                          args=(url, self.var_variants.get(), self.var_layers.get(), self.var_cliparts.get(), self.var_desc.get(), base_dir),
                          daemon=True).start()
@@ -473,8 +513,10 @@ class GossbyTab(tk.Frame):
             sys.stderr = old_stderr
 
     def _done(self, success, save_path, elapsed_m=0, elapsed_s=0):
-        self.btn.configure(state="normal", bg="#2563eb", fg="#ffffff")
-        self.btn_stop.configure(state="disabled", bg="#ffffff", fg="#000000")
+        self.progress.stop()
+        self.progress.configure(value=0)
+        self.btn.configure(state="normal", **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
+        self.btn_stop.configure(state="disabled", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
         self.is_running = False
         if success:
             time_str = f" (⏱ {elapsed_m:02d}:{elapsed_s:02d})"
@@ -504,9 +546,9 @@ class CollectionTab(tk.Frame):
                  font=("Segoe UI", 14, "bold")).pack(fill="x", pady=(10, 6))
 
         # URL row
-        frame_url = tk.Frame(self, bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1)
+        frame_url = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)
         frame_url.pack(fill="x", padx=16, pady=(4, 6), ipadx=4, ipady=4)
-        tk.Label(frame_url, text="URL Collection:", bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1,
+        tk.Label(frame_url, text="URL Collection:", bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1,
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left")
         self.url_var = tk.StringVar()
         url_entry = tk.Entry(frame_url, textvariable=self.url_var,
@@ -515,47 +557,47 @@ class CollectionTab(tk.Frame):
         url_entry.pack(side="left", fill="x", expand=True, padx=(8, 8))
         url_entry.bind("<Return>", lambda e: self._start())
         self.btn = tk.Button(frame_url, text="▶  Lấy", command=self._start,
-                             bg="#4f46e5", fg="#fff", activebackground="#6d28d9",
-                             font=("Segoe UI", 10, "bold"), relief="flat",
-                             padx=14, pady=4, cursor="hand2")
+                             font=("Segoe UI", 10, "bold"),
+                             padx=14, pady=4, cursor="hand2",
+                             **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
         self.btn.pack(side="left", padx=(0, 8))
         self.btn_stop = tk.Button(frame_url, text="■  Dừng", command=self._stop,
-                                  bg="#dc2626", fg="#fff", activebackground="#b91c1c",
-                                  font=("Segoe UI", 10, "bold"), relief="flat",
-                                  padx=14, pady=4, cursor="hand2", state="disabled")
+                                  font=("Segoe UI", 10, "bold"),
+                                  padx=14, pady=4, cursor="hand2", state="disabled",
+                                  **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
         self.btn_stop.pack(side="left")
 
         # Options row
-        opt_frame = tk.Frame(self, bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1)
+        opt_frame = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)
         opt_frame.pack(fill="x", padx=16, pady=(4, 4), ipadx=4, ipady=4)
-        tk.Label(opt_frame, text="Số lượng SP:", bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1,
+        tk.Label(opt_frame, text="Số lượng SP:", bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1,
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left", padx=(0, 6))
         self.limit_var = tk.StringVar(value="10")
         for val, txt in [("10", "10"), ("20", "20"), ("50", "50"), ("0", "Tất cả")]:
             tk.Radiobutton(opt_frame, text=txt, variable=self.limit_var, value=val,
-                           bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1, font=("Segoe UI", 10),
+                           bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10),
                            activebackground="#f0f0f5").pack(side="left", padx=(0, 12))
 
         # Checkboxes — what to download per product
-        chk_frame = tk.Frame(self, bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1)
+        chk_frame = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)
         chk_frame.pack(fill="x", padx=16, pady=(4, 4), ipadx=4, ipady=4)
-        tk.Label(chk_frame, text="Tải:", bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1,
+        tk.Label(chk_frame, text="Tải:", bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1,
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left", padx=(0, 6))
         self.var_variants = tk.BooleanVar(value=True)
         self.var_layers = tk.BooleanVar(value=True)
         self.var_cliparts = tk.BooleanVar(value=True)
         self.var_save_json = tk.BooleanVar(value=False)
         tk.Checkbutton(chk_frame, text="Variants (ảnh)", variable=self.var_variants,
-                       bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 12))
+                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 12))
         tk.Checkbutton(chk_frame, text="Layers (cá nhân hóa)", variable=self.var_layers,
-                       bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 12))
+                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 12))
         tk.Checkbutton(chk_frame, text="Cliparts", variable=self.var_cliparts,
-                       bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 12))
+                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left", padx=(0, 12))
         tk.Checkbutton(chk_frame, text="Lưu JSON config", variable=self.var_save_json,
-                       bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1, font=("Segoe UI", 10)).pack(side="left")
+                       bg="#ffffff", highlightbackground=PANEL_BORDER, highlightthickness=1, font=("Segoe UI", 10)).pack(side="left")
 
         # Folder row
-        folder_frame = tk.Frame(self, bg="#ffffff", highlightbackground="#cbd5e1", highlightthickness=1)
+        folder_frame = tk.Frame(self, bg=PANEL_BG, highlightbackground=PANEL_BORDER, highlightthickness=1)
         folder_frame.pack(fill="x", padx=16, pady=(4, 4), ipadx=4, ipady=4)
         tk.Label(folder_frame, text="Thư mục lưu:", bg="#ffffff",
                  fg="#000000", font=("Segoe UI", 10)).pack(side="left")
@@ -577,9 +619,9 @@ class CollectionTab(tk.Frame):
         col_entry.bind("<FocusOut>", col_focus_out)
         self.folder_entry = col_entry
 
-        tk.Button(folder_frame, text="Chon", command=self._browse_folder,
-                  bg="#e5e7eb", fg="#000000", relief="flat",
-                  font=("Segoe UI", 10), cursor="hand2", padx=6).pack(side="left")
+        tk.Button(folder_frame, text="Chọn", command=self._browse_folder,
+                  font=("Segoe UI", 10), cursor="hand2", padx=6,
+                  **_button_style(BUTTON_PRIMARY_BG, BUTTON_PRIMARY_BORDER)).pack(side="left")
 
         # Status
         self.status_var = tk.StringVar(value="Sẵn sàng")
@@ -592,8 +634,8 @@ class CollectionTab(tk.Frame):
         self.log_box = _make_log_box(self)
         self.log_box.pack(fill="both", expand=True, padx=16, pady=(0, 4))
         tk.Button(self, text="Xoá log", command=self._clear_log,
-                  bg="#e5e7eb", fg="#000000", relief="flat",
-                  font=("Segoe UI", 8), cursor="hand2").pack(anchor="e", padx=16, pady=(0, 8))
+                  font=("Segoe UI", 8), cursor="hand2",
+                  **_button_style(BUTTON_SECONDARY_BG, BUTTON_SECONDARY_BORDER)).pack(anchor="e", padx=16, pady=(0, 8))
 
 
     def _browse_folder(self):
@@ -614,7 +656,7 @@ class CollectionTab(tk.Frame):
         self.is_running = False
         self._log("\n[!] Đang gửi lệnh dừng đến tiến trình tải ảnh...")
         self.status_var.set("Đang dừng...")
-        self.btn_stop.configure(state="disabled", bg="#fca5a5", fg="#ffffff")
+        self.btn_stop.configure(state="disabled", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
 
     def _start(self):
         url = self.url_var.get().strip()
@@ -623,18 +665,18 @@ class CollectionTab(tk.Frame):
         if self.is_running: return
         self._clear_log()
         self.is_running = True
-        self.btn.configure(state="disabled", bg="#a78bfa", fg="#ffffff")
-        self.btn_stop.configure(state="normal", bg="#dc2626", fg="#ffffff")
+        self.btn.configure(state="disabled", **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
+        self.btn_stop.configure(state="normal", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
         self.status_var.set("Đang lấy danh sách sản phẩm...")
         limit_str = self.limit_var.get()
         limit = int(limit_str)
         folder = self.folder_var.get().strip()
         base_dir = folder if folder else None
         if _is_empty_output_folder(folder):
-            messagebox.showwarning("Thieu thu muc luu", "Vui long chon thu muc luu truoc khi bat dau.")
+            messagebox.showwarning("Thiếu thư mục lưu", "Vui lòng chọn thư mục lưu trước khi bắt đầu.")
             self.is_running = False
-            self.btn.configure(state="normal", bg="#4f46e5", fg="#ffffff")
-            self.btn_stop.configure(state="disabled", bg="#e5e7eb", fg="#9ca3af")
+            self.btn.configure(state="normal", **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
+            self.btn_stop.configure(state="disabled", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
             self.status_var.set("San sang")
             return
         threading.Thread(target=self._worker, args=(url, limit, base_dir), daemon=True).start()
@@ -703,8 +745,8 @@ class CollectionTab(tk.Frame):
 
     def _done_collection(self, success, ok=0, fail=0, save_path="", mm=0, ss=0):
         self.is_running = False
-        self.btn_stop.configure(state="disabled", bg="#e5e7eb", fg="#9ca3af")
-        self.btn.configure(state="normal", bg="#4f46e5", fg="#ffffff")
+        self.btn_stop.configure(state="disabled", **_button_style(BUTTON_STOP_BG, BUTTON_STOP_BORDER))
+        self.btn.configure(state="normal", **_button_style(BUTTON_START_BG, BUTTON_START_BORDER))
         if success:
             time_str = f" (⏱ {mm:02d}:{ss:02d})"
             self.status_var.set(f"✅ Xong — {ok} thành công | {fail} thất bại{time_str}")
@@ -733,8 +775,8 @@ class CrawlTab(tk.Frame):
         style.configure("TNotebook.Tab", background="#ffffff", foreground="#64748b",
                         font=("Segoe UI", 10, "bold"), padding=(14, 5))
         style.map("TNotebook.Tab",
-                  background=[("selected", "#2563eb")],
-                  foreground=[("selected", "#ffffff")],
+                  background=[("selected", BUTTON_PRIMARY_BG)],
+                  foreground=[("selected", "#000000")],
                   font=[("selected", ("Segoe UI", 13, "bold"))],
                   padding=[("selected", (20, 8))])
 
@@ -808,9 +850,9 @@ class CrawlTab(tk.Frame):
                 messagebox.showerror("Lỗi", f"Không thể mở file hướng dẫn: {e}")
 
         guide_btn = tk.Button(api_bar, text="📖 Hướng dẫn lấy Gemini API Key", command=_open_guide,
-                              bg="#2563eb", fg="#ffffff", activebackground="#1d4ed8",
-                              font=("Segoe UI", 9, "bold"), relief="flat",
-                              cursor="hand2", padx=6)
+                              font=("Segoe UI", 9, "bold"),
+                              cursor="hand2", padx=6,
+                              **_button_style(BUTTON_PRIMARY_BG, BUTTON_PRIMARY_BORDER))
         guide_btn.pack(side="left", padx=(4, 0))
 
         tk.Label(api_container, text="(tùy chọn - bỏ trống Gemini API Key nếu không cần tạo mới Description)",

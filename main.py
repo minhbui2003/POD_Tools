@@ -43,6 +43,8 @@ class PODToolsApp(tk.Tk):
         # Init Tabs
         self.frames["crawl"] = CrawlTab(self.main_area)
         self.frames["resize"] = ResizeTab(self.main_area)
+        for frame in self.frames.values():
+            frame.grid(row=0, column=0, sticky="nsew")
         
         # Máº·c Ä‘á»‹nh má»Ÿ tab Ä‘áº§u tiÃªn
         self._switch_tab("crawl", self.btn_crawl)
@@ -133,6 +135,8 @@ class PODToolsApp(tk.Tk):
     def _build_main_area(self):
         self.main_area = tk.Frame(self, bg=BG_MAIN)
         self.main_area.pack(side="left", fill="both", expand=True)
+        self.main_area.grid_rowconfigure(0, weight=1)
+        self.main_area.grid_columnconfigure(0, weight=1)
 
     def _switch_tab(self, tab_id, btn):
         # Äá»•i mÃ u hiá»ƒn thá»‹ cá»§a sidebar
@@ -141,13 +145,9 @@ class PODToolsApp(tk.Tk):
         self.current_btn = btn
         self.current_btn.configure(bg=ACCENT, fg="#000000")
         
-        # áº¨n frame cÅ©
-        if self.current_frame:
-            self.current_frame.pack_forget()
-            
-        # Hiá»ƒn thá»‹ frame má»›i
+        # Keep frames stacked and raise the selected one to reduce redraw flicker on macOS.
         self.current_frame = self.frames[tab_id]
-        self.current_frame.pack(fill="both", expand=True)
+        self.current_frame.tkraise()
 
 if __name__ == "__main__":
     app = PODToolsApp()

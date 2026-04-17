@@ -4,6 +4,26 @@ import webbrowser
 
 from core import updater
 
+BUTTON_PRIMARY_BG = "#DCEEFF"
+BUTTON_PRIMARY_BORDER = "#9FC3E8"
+BUTTON_SECONDARY_BG = "#EAF0F6"
+BUTTON_SECONDARY_BORDER = "#C7D0DB"
+
+
+def _button_style(bg, border):
+    return {
+        "bg": bg,
+        "fg": "#000000",
+        "disabledforeground": "#000000",
+        "activebackground": bg,
+        "activeforeground": "#000000",
+        "relief": "solid",
+        "bd": 1,
+        "highlightthickness": 1,
+        "highlightbackground": border,
+        "highlightcolor": border,
+    }
+
 class UpdateDialog(tk.Toplevel):
     def __init__(self, parent, new_version, release_notes, download_url, sha256):
         super().__init__(parent)
@@ -57,13 +77,15 @@ class UpdateDialog(tk.Toplevel):
         
         update_text = "Tai ban macOS" if self.is_manual_update else "Cập nhật ngay"
         self.btn_update = tk.Button(self.btn_frame, text=update_text, font=("Segoe UI", 10, "bold"),
-                                   bg="#27ae60", fg="white", relief="flat", padx=15, pady=5, cursor="hand2",
-                                   command=self.start_update)
+                                   padx=15, pady=5, cursor="hand2",
+                                   command=self.start_update,
+                                   **_button_style(BUTTON_PRIMARY_BG, BUTTON_PRIMARY_BORDER))
         self.btn_update.pack(side="left", expand=True)
         
         self.btn_cancel = tk.Button(self.btn_frame, text="Nhắc tôi sau", font=("Segoe UI", 10),
-                                   bg="#e0e0e0", fg="#333333", relief="flat", padx=15, pady=5, cursor="hand2",
-                                   command=self.destroy)
+                                   padx=15, pady=5, cursor="hand2",
+                                   command=self.destroy,
+                                   **_button_style(BUTTON_SECONDARY_BG, BUTTON_SECONDARY_BORDER))
         self.btn_cancel.pack(side="right", expand=True)
         
         self._center_window()

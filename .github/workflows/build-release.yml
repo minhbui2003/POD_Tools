@@ -149,3 +149,16 @@ jobs:
             ./artifacts/macos/POD_Tools_mac.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Keep latest 5 releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list --limit 100 --json tagName,createdAt \
+            --jq 'sort_by(.createdAt) | reverse | .[5:] | .[].tagName' |
+          while read TAG_NAME; do
+            if [ -n "$TAG_NAME" ]; then
+              echo "Deleting old release: $TAG_NAME"
+              gh release delete "$TAG_NAME" --yes
+            fi
+          done
