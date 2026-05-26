@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.demcanvas_scraper import DemCanvasDownloader
 from core.gossby_scraper import gs_scrape_personalized_data, gs_scrape_single_product
 from core.platform_utils import get_asset_path, get_default_dialog_dir, get_user_config_dir, open_path
 from core.wanderprints_scraper import Downloader
@@ -90,6 +91,53 @@ class WanderprintsWorker(QObject):
             self.finished.emit()
 
 
+class DemCanvasWorker(QObject):
+    log = Signal(str, str)
+    progress = Signal(int)
+    done = Signal(dict)
+    finished = Signal()
+
+    def __init__(self, url, output_dir, do_media, do_swatch, do_desc, gemini_key):
+        super().__init__()
+        self.url = url
+        self.output_dir = output_dir
+        self.do_media = do_media
+        self.do_swatch = do_swatch
+        self.do_desc = do_desc
+        self.gemini_key = gemini_key
+        self.running = True
+
+    def stop(self):
+        self.running = False
+
+    @Slot()
+    def run(self):
+        start = time.time()
+        try:
+            key = self.gemini_key if self.do_desc else None
+            dl = DemCanvasDownloader(
+                log_fn=lambda msg: self.log.emit(msg, log_level_from_text(msg)),
+                progress_fn=lambda current, total: self.progress.emit(int(current / total * 100) if total else 0),
+                gemini_api_key=key or None,
+                is_running_check=lambda: self.running,
+                output_root=self.output_dir,
+            )
+            out_dir = dl.run(self.url, do_media=self.do_media, do_swatch=self.do_swatch)
+            elapsed = int(time.time() - start)
+            self.done.emit({
+                "success": True,
+                "ok": dl.total_ok,
+                "fail": dl.total_fail,
+                "path": out_dir or self.output_dir,
+                "elapsed": elapsed,
+            })
+        except Exception as exc:
+            self.log.emit(f"[ERROR] {exc}", "error")
+            self.done.emit({"success": False, "error": str(exc), "path": "", "elapsed": 0})
+        finally:
+            self.finished.emit()
+
+
 class GossbyWorker(QObject):
     log = Signal(str, str)
     done = Signal(dict)
@@ -138,10 +186,11 @@ class GossbyWorker(QObject):
 
 
 class ProductTab(QWidget):
-    def __init__(self, title, key_provider, is_gossby=False):
+    def __init__(self, title, key_provider, is_gossby=False, is_demcanvas=False):
         super().__init__()
         self.key_provider = key_provider
         self.is_gossby = is_gossby
+        self.is_demcanvas = is_demcanvas
         self.thread = None
         self.worker = None
         self._build(title)
@@ -281,6 +330,16 @@ class ProductTab(QWidget):
                 self.var_desc.isChecked(),
                 self.key_provider(),
             )
+        elif self.is_demcanvas:
+            self.progress.setRange(0, 100)
+            self.worker = DemCanvasWorker(
+                url, output,
+                self.var_media.isChecked(),
+                self.var_swatch.isChecked(),
+                self.var_desc.isChecked(),
+                self.key_provider(),
+            )
+            self.worker.progress.connect(self.progress.setValue)
         else:
             self.progress.setRange(0, 100)
             self.worker = WanderprintsWorker(
@@ -352,8 +411,10 @@ class CrawlPage(QWidget):
         self.tabs = QTabWidget()
         self.wp_tab = ProductTab("Wanderprints", self.current_key, is_gossby=False)
         self.gs_tab = ProductTab("Gossby", self.current_key, is_gossby=True)
+        self.dc_tab = ProductTab("DemCanvas", self.current_key, is_demcanvas=True)
         self.tabs.addTab(self.wp_tab, "Wanderprints")
         self.tabs.addTab(self.gs_tab, "Gossby")
+        self.tabs.addTab(self.dc_tab, "DemCanvas")
         root.addWidget(self.tabs, 1)
 
     def current_key(self):
@@ -363,6 +424,7 @@ class CrawlPage(QWidget):
         has_key = bool(self.current_key())
         self.wp_tab.set_has_key(has_key)
         self.gs_tab.set_has_key(has_key)
+        self.dc_tab.set_has_key(has_key)
 
     def _toggle_key(self):
         self.key_entry.setEchoMode(

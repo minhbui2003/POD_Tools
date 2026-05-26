@@ -20,6 +20,7 @@ a = Analysis(
         'qt_gui.styles',
         'qt_gui.update_dialog',
         'core.collection_scraper',
+        'core.demcanvas_scraper',
         'core.gossby_scraper',
         'core.wanderprints_scraper',
         'core.utils',

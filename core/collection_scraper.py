@@ -1,5 +1,5 @@
 """
-Collection Scraper — lấy danh sách sản phẩm từ collection URL (Gossby / Wanderprints)
+Collection Scraper — lấy danh sách sản phẩm từ collection URL (Gossby / Wanderprints / DemCanvas)
 """
 
 import re, json, math
@@ -30,12 +30,14 @@ _API_HEADERS = {
 
 
 def detect_site(url: str) -> str:
-    """Phân biệt nguồn site từ URL.  Trả về 'gossby', 'wanderprints' hoặc 'unknown'."""
+    """Phân biệt nguồn site từ URL."""
     u = url.lower()
     if "gossby.com" in u:
         return "gossby"
     if "wanderprints.com" in u:
         return "wanderprints"
+    if "demcanvas.co" in u:
+        return "demcanvas"
     return "unknown"
 
 
@@ -155,25 +157,35 @@ def gossby_collection(collection_url: str, limit: int = 10, log_fn=None, is_runn
 
 
 # ═══════════════════════════════════════════════════════════
-#  WANDERPRINTS (Shopify)
+#  SHOPIFY COLLECTIONS (WANDERPRINTS / DEMCANVAS)
 # ═══════════════════════════════════════════════════════════
 
-def wanderprints_collection(collection_url: str, limit: int = 10, log_fn=None, is_running_check=None) -> list[dict]:
-    """Lấy danh sách sản phẩm từ Wanderprints collection (Shopify products.json)."""
-    log = log_fn or print
-    check_run = is_running_check or (lambda: True)
+def _extract_collection_handle(collection_url: str) -> str:
     from urllib.parse import urlparse
     path = urlparse(collection_url).path.rstrip("/")
-    parts = path.split("/")
-    handle = ""
+    parts = [p for p in path.split("/") if p]
     for i, seg in enumerate(parts):
         if seg == "collections" and i + 1 < len(parts):
-            handle = parts[i + 1]
-            break
+            return parts[i + 1]
+    return ""
+
+
+def _shopify_collection(
+    collection_url: str,
+    domain: str,
+    label: str,
+    limit: int = 10,
+    log_fn=None,
+    is_running_check=None,
+) -> list[dict]:
+    """Lấy danh sách sản phẩm từ Shopify collection products.json."""
+    log = log_fn or print
+    check_run = is_running_check or (lambda: True)
+    handle = _extract_collection_handle(collection_url)
     if not handle:
         log("[FAIL] Không tách được collection handle từ URL")
         return []
-    log(f"[WP] Collection handle: {handle}")
+    log(f"[{label}] Collection handle: {handle}")
     sess = requests.Session()
     sess.headers.update({
         "User-Agent": _PAGE_HEADERS["User-Agent"],
@@ -184,7 +196,7 @@ def wanderprints_collection(collection_url: str, limit: int = 10, log_fn=None, i
     all_products = []
     while True:
         if not check_run(): break
-        api_url = f"https://wanderprints.com/collections/{handle}/products.json"
+        api_url = f"https://{domain}/collections/{handle}/products.json"
         params = {"limit": PAGE_SIZE, "page": page}
         log(f"  → page {page} ...")
         try:
@@ -204,7 +216,7 @@ def wanderprints_collection(collection_url: str, limit: int = 10, log_fn=None, i
             all_products.append({
                 "product_id": p.get("id"),
                 "title": p.get("title", ""),
-                "url": f"https://wanderprints.com/collections/{handle}/products/{slug}" if slug else "",
+                "url": f"https://{domain}/collections/{handle}/products/{slug}" if slug else "",
                 "slug": slug,
                 "image": (p.get("images", [{}])[0].get("src", "") if p.get("images") else ""),
                 "price": p.get("variants", [{}])[0].get("price", "") if p.get("variants") else "",
@@ -222,6 +234,30 @@ def wanderprints_collection(collection_url: str, limit: int = 10, log_fn=None, i
     return all_products
 
 
+def wanderprints_collection(collection_url: str, limit: int = 10, log_fn=None, is_running_check=None) -> list[dict]:
+    """Lấy danh sách sản phẩm từ Wanderprints collection (Shopify products.json)."""
+    return _shopify_collection(
+        collection_url,
+        domain="wanderprints.com",
+        label="WP",
+        limit=limit,
+        log_fn=log_fn,
+        is_running_check=is_running_check,
+    )
+
+
+def demcanvas_collection(collection_url: str, limit: int = 10, log_fn=None, is_running_check=None) -> list[dict]:
+    """Lấy danh sách sản phẩm từ DemCanvas collection (Shopify products.json)."""
+    return _shopify_collection(
+        collection_url,
+        domain="demcanvas.co",
+        label="DemCanvas",
+        limit=limit,
+        log_fn=log_fn,
+        is_running_check=is_running_check,
+    )
+
+
 # ═══════════════════════════════════════════════════════════
 #  ENTRY POINT
 # ═══════════════════════════════════════════════════════════
@@ -234,6 +270,8 @@ def fetch_collection(url: str, limit: int = 10, log_fn=None, is_running_check=No
         return gossby_collection(url, limit=limit, log_fn=log, is_running_check=is_running_check)
     elif site == "wanderprints":
         return wanderprints_collection(url, limit=limit, log_fn=log, is_running_check=is_running_check)
+    elif site == "demcanvas":
+        return demcanvas_collection(url, limit=limit, log_fn=log, is_running_check=is_running_check)
     else:
         log(f"[FAIL] Không nhận diện được site từ URL: {url}")
         return []
