@@ -23,7 +23,9 @@ a = Analysis(
         'core.demcanvas_scraper',
         'core.gossby_scraper',
         'core.wanderprints_scraper',
+        'core.shopify_scraper',
         'core.utils',
+
         'core.config',
         'core.updater',
         'core.platform_utils',

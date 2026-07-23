@@ -38,7 +38,16 @@ def detect_site(url: str) -> str:
         return "wanderprints"
     if "demcanvas.co" in u:
         return "demcanvas"
+    if "macorner.co" in u:
+        return "macorner"
+    if "trendingcustom.com" in u:
+        return "trendingcustom"
+    if "pawfecthouse.com" in u:
+        return "pawfecthouse"
+    if "myshopify.com" in u or "/collections/" in u:
+        return "shopify_generic"
     return "unknown"
+
 
 
 # ═══════════════════════════════════════════════════════════
@@ -198,7 +207,7 @@ def _shopify_collection(
         if not check_run(): break
         api_url = f"https://{domain}/collections/{handle}/products.json"
         params = {"limit": PAGE_SIZE, "page": page}
-        log(f"  → page {page} ...")
+        log(f"  -> page {page} ...")
         try:
             resp = sess.get(api_url, params=params, timeout=20)
         except Exception as e:
@@ -230,7 +239,8 @@ def _shopify_collection(
         page += 1
     if limit > 0:
         all_products = all_products[:limit]
-    log(f"  → Đã lấy {len(all_products)} sản phẩm")
+    log(f"  -> Fetched {len(all_products)} products")
+
     return all_products
 
 
@@ -272,6 +282,18 @@ def fetch_collection(url: str, limit: int = 10, log_fn=None, is_running_check=No
         return wanderprints_collection(url, limit=limit, log_fn=log, is_running_check=is_running_check)
     elif site == "demcanvas":
         return demcanvas_collection(url, limit=limit, log_fn=log, is_running_check=is_running_check)
+    elif site in ("macorner", "trendingcustom", "pawfecthouse", "shopify_generic"):
+        from urllib.parse import urlparse
+        domain = urlparse(url).netloc
+        return _shopify_collection(
+            url,
+            domain=domain,
+            label=site.upper(),
+            limit=limit,
+            log_fn=log,
+            is_running_check=is_running_check
+        )
     else:
         log(f"[FAIL] Không nhận diện được site từ URL: {url}")
         return []
+

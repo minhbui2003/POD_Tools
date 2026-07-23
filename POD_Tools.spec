@@ -9,7 +9,8 @@ a = Analysis(
     pathex=[],
     binaries=extra_binaries,
     datas=[('assets/Logo_bg.png', 'assets'), ('assets/icon_crawl.png', 'assets'), ('assets/icon_resize.png', 'assets'), ('assets/guid_get_gemini_key.pdf', 'assets'), ('assets/checkmark.svg', 'assets'), ('assets/folder.svg', 'assets')] + extra_datas,
-    hiddenimports=['qt_gui.app', 'qt_gui.common', 'qt_gui.crawl_page', 'qt_gui.resize_page', 'qt_gui.styles', 'qt_gui.update_dialog', 'core.collection_scraper', 'core.demcanvas_scraper', 'core.gossby_scraper', 'core.wanderprints_scraper', 'core.utils', 'core.config', 'core.updater', 'core.platform_utils'],
+    hiddenimports=['qt_gui.app', 'qt_gui.common', 'qt_gui.crawl_page', 'qt_gui.resize_page', 'qt_gui.styles', 'qt_gui.update_dialog', 'core.collection_scraper', 'core.demcanvas_scraper', 'core.gossby_scraper', 'core.wanderprints_scraper', 'core.shopify_scraper', 'core.utils', 'core.config', 'core.updater', 'core.platform_utils'],
+
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
