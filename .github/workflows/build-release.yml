@@ -134,9 +134,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
           git add version.json
-          git commit -m "ci: update version.json for ${{ steps.get_version.outputs.VERSION }}"
-          git push origin HEAD:main
+          git commit -m "ci: update version.json for ${{ steps.get_version.outputs.VERSION }}" || echo "No changes to commit"
+          git push origin main
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
