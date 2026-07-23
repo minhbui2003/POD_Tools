@@ -29,6 +29,7 @@ a = Analysis(
         'core.config',
         'core.updater',
         'core.platform_utils',
+        'lzstring',
     ],
     hookspath=[],
     hooksconfig={},
