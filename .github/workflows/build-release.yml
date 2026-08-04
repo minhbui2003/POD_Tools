@@ -26,6 +26,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Update version in config.py
+        run: |
+          $Version = $env:GITHUB_REF -replace 'refs/tags/v', ''
+          (Get-Content core/config.py) -replace 'CURRENT_VERSION = ".*"', ("CURRENT_VERSION = `"" + $Version + "`"") | Set-Content core/config.py
+
       - name: Build Windows exe
         run: pyinstaller POD_Tools.spec --noconfirm
 
@@ -51,6 +56,11 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Update version in config.py
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          sed -i '' "s/CURRENT_VERSION = \".*\"/CURRENT_VERSION = \"${VERSION}\"/" core/config.py
 
       - name: Build macOS app
         run: pyinstaller POD_Tools_mac.spec --noconfirm

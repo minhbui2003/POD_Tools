@@ -504,7 +504,7 @@ def gs_long_path(path):
     if os.name == 'nt' and not path.startswith('\\\\?\\'): return f"\\\\?\\{path}"
     return path
 
-def gs_download_image_p(url, folder, filename):
+def gs_download_image_p(url, folder, filename, is_running_check=None):
     folder = gs_long_path(folder)
     if not os.path.exists(folder): os.makedirs(folder)
     target_url = url; is_modified = False
@@ -531,7 +531,8 @@ def gs_download_image_p(url, folder, filename):
             else: print(f"    -> Failed (Original): {filename} ({r2.status_code})")
         except Exception as e: print(f"    -> Error Original {filename}: {e}")
 
-def gs_process_component(comp_data, output_dir, image_data_lookup):
+def gs_process_component(comp_data, output_dir, image_data_lookup, is_running_check=None):
+    if is_running_check and not is_running_check(): return 0
     comp_type = comp_data.get('component_type', '')
     if isinstance(comp_type, str): comp_type = comp_type.lower()
     comp_title = comp_data.get('title') or comp_data.get('layer') or comp_data.get('layer_name') or str(comp_data.get('id', 'Unknown'))
@@ -544,24 +545,28 @@ def gs_process_component(comp_data, output_dir, image_data_lookup):
         if img_id and str(img_id) in image_data_lookup:
             direct_img_url = image_data_lookup[str(img_id)].get('url')
     if direct_img_url:
-        gs_download_image_p(direct_img_url, output_dir, f"{safe_title}{gs_get_extension(direct_img_url)}")
+        gs_download_image_p(direct_img_url, output_dir, f"{safe_title}{gs_get_extension(direct_img_url)}", is_running_check)
         downloaded_count += 1
     if comp_type == 'switcherbyimage':
         for sk, sd in comp_data.get('scenes', {}).items():
             simg = sd.get('image', {}).get('url')
             if simg:
                 st = gs_sanitize_filename(sd.get('title', sk))
-                gs_download_image_p(simg, component_folder, f"{st}{gs_get_extension(simg)}")
+                gs_download_image_p(simg, component_folder, f"{st}{gs_get_extension(simg)}", is_running_check)
                 downloaded_count += 1
             nc = sd.get('components', {})
             if isinstance(nc, dict):
-                for k, v in nc.items(): downloaded_count += gs_process_component(v, component_folder, image_data_lookup)
+                for k, v in nc.items(): downloaded_count += gs_process_component(v, component_folder, image_data_lookup, is_running_check)
+            elif isinstance(nc, list):
+                for v in nc: downloaded_count += gs_process_component(v, component_folder, image_data_lookup, is_running_check)
     elif comp_type in ('switcherbynull', 'switcherbyselect'):
         for sk, sd in comp_data.get('scenes', {}).items():
             sf = os.path.join(component_folder, gs_sanitize_filename(sd.get('title', sk)))
             nc = sd.get('components', {})
             if isinstance(nc, dict):
-                for k, v in nc.items(): downloaded_count += gs_process_component(v, sf, image_data_lookup)
+                for k, v in nc.items(): downloaded_count += gs_process_component(v, sf, image_data_lookup, is_running_check)
+            elif isinstance(nc, list):
+                for v in nc: downloaded_count += gs_process_component(v, sf, image_data_lookup, is_running_check)
     elif comp_type == 'imageselector':
         for ik, ii in comp_data.get('images', {}).items():
             img_id = ii.get('image_id') or ii.get('id')
@@ -569,7 +574,7 @@ def gs_process_component(comp_data, output_dir, image_data_lookup):
                 img_url = image_data_lookup[str(img_id)].get('url')
                 if img_url:
                     it = gs_sanitize_filename(ii.get('title', 'untitled'))
-                    gs_download_image_p(img_url, component_folder, f"{it}{gs_get_extension(img_url)}")
+                    gs_download_image_p(img_url, component_folder, f"{it}{gs_get_extension(img_url)}", is_running_check)
                     downloaded_count += 1
     elif comp_type == 'imagegroupselector':
         for group in comp_data.get('groups', []):
@@ -585,6 +590,8 @@ def gs_process_component(comp_data, output_dir, image_data_lookup):
     nested = comp_data.get('components', {})
     if isinstance(nested, dict):
         for k, v in nested.items(): downloaded_count += gs_process_component(v, component_folder, image_data_lookup, is_running_check)
+    elif isinstance(nested, list):
+        for v in nested: downloaded_count += gs_process_component(v, component_folder, image_data_lookup, is_running_check)
     return downloaded_count
 
 def gs_build_default_design_payload(components, design_id):
