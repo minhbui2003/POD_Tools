@@ -97,14 +97,35 @@ class ShopifyDownloader:
 
 
     def _fetch_url(self, url: str, timeout: int = 15, retries: int = 3) -> requests.Response | None:
-        """Fetch URL with HTTP 429 backoff retry logic."""
+        """Fetch URL with HTTP 429 backoff retry logic and urllib fallback."""
+        import urllib.request
+        from urllib.error import HTTPError
+        
         for attempt in range(retries):
             try:
                 r = self._session.get(url, timeout=timeout)
                 if r.status_code == 429:
-                    self.log(f"  [WARN] HTTP 429 Rate limited. Waiting 2s (Attempt {attempt+1}/{retries})...")
-                    time.sleep(2)
-                    continue
+                    self.log(f"  [WARN] HTTP 429 Rate limited via requests. Trying urllib fallback (Attempt {attempt+1}/{retries})...")
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+                    try:
+                        with urllib.request.urlopen(req, timeout=timeout) as response:
+                            body = response.read()
+                            fallback_r = requests.Response()
+                            fallback_r.status_code = response.getcode()
+                            fallback_r._content = body
+                            fallback_r.encoding = 'utf-8'
+                            return fallback_r
+                    except HTTPError as e:
+                        if e.code == 429:
+                            self.log(f"  [WARN] HTTP 429 via urllib too. Waiting 2s...")
+                            time.sleep(2)
+                            continue
+                        else:
+                            fallback_r = requests.Response()
+                            fallback_r.status_code = e.code
+                            fallback_r._content = e.read()
+                            fallback_r.encoding = 'utf-8'
+                            return fallback_r
                 return r
             except Exception as e:
                 if attempt == retries - 1:
@@ -371,17 +392,26 @@ class ShopifyDownloader:
 
             # 1. Extract myshopify domain (e.g. we1xpn-ya.myshopify.com)
             myshopify_domains = list(set(re.findall(r'([a-zA-Z0-9\-_]+\.myshopify\.com)', html)))
-            myshopify_domain = myshopify_domains[0] if myshopify_domains else None
             product_id = str(pdata.get("id", ""))
-
-            if not myshopify_domain or not product_id:
+            
+            if not myshopify_domains or not product_id:
+                return []
+                
+            hash_val = None
+            myshopify_domain = None
+            
+            for d in myshopify_domains:
+                hash_uri = f"hash/{d}/{product_id}"
+                decompressed_hash = self._fetch_customall_payload(hash_uri)
+                if decompressed_hash and "hash|" in decompressed_hash:
+                    hash_val = decompressed_hash.split("hash|")[1].split("^")[0].split("|")[0].strip()
+                    myshopify_domain = d
+                    break
+                    
+            if not hash_val or not myshopify_domain:
                 return []
 
-            # 2. Fetch Hash
-            hash_uri = f"hash/{myshopify_domain}/{product_id}"
-            decompressed_hash = self._fetch_customall_payload(hash_uri)
-            if not decompressed_hash or "hash|" not in decompressed_hash:
-                return []
+
 
             hash_val = decompressed_hash.split("hash|")[1].split("^")[0].split("|")[0].strip()
             self.log(f"  [CustomAll] Extracted campaign Hash: {hash_val[:12]}...")
@@ -520,6 +550,101 @@ class ShopifyDownloader:
 
         return clipart_urls
 
+    def fetch_customily_cliparts(self, product_url: str, pdata: dict) -> list[tuple[str, str]]:
+        """Lấy tất cả các file ảnh cliparts từ Customily API có cấu trúc."""
+        clipart_urls = []
+        try:
+            html = self._get_product_html(product_url)
+            if not html or 'customily' not in html.lower():
+                return []
+
+            myshopify_domains = list(set(re.findall(r'([a-zA-Z0-9\-_]+\.myshopify\.com)', html)))
+            product_id = str(pdata.get("id", ""))
+            
+            if not myshopify_domains or not product_id:
+                return []
+
+            # 1. Fetch unified settings to get Customily Product ID and options
+            customily_product_id = None
+            opts = []
+            for d in myshopify_domains:
+                unified_url = f"https://sh.customily.com/api/settings/unified/{pdata.get('handle')}?shop={d}&productId={product_id}"
+                r1 = self._fetch_url(unified_url, timeout=10)
+                if r1 and r1.status_code == 200:
+                    try:
+                        data1 = r1.json()
+                        pconfig = data1.get('productConfig', {})
+                        if pconfig.get('initial_product_id'):
+                            customily_product_id = pconfig.get('initial_product_id')
+                            opts = data1.get('sets', [{}])[0].get('options', [])
+                            break
+                    except Exception:
+                        pass
+            
+            if not customily_product_id:
+                return []
+                
+            self.log(f"  [Customily] Extracted Customily Product UUID: {customily_product_id}")
+            
+            # 2. Fetch product config (GetProduct)
+            prod_url = f"https://app.customily.com/api/Product/GetProduct?productId={customily_product_id}&clientVersion=3.10.93&useListEPS=true"
+            r2 = self._fetch_url(prod_url, timeout=10)
+            if not r2 or r2.status_code != 200:
+                return []
+                
+            prod_data = r2.json()
+            
+            # Map placeholders
+            placeholders = {}
+            for ph in prod_data.get('preview', {}).get('imagePlaceHoldersPreview', []):
+                ph_id = str(ph.get('id'))
+                dp = ph.get('dynamicImagesPath')
+                mapping = {}
+                if dp:
+                    try:
+                        paths = json.loads(dp)
+                        for item in paths:
+                            if len(item) >= 2 and isinstance(item[1], str):
+                                mapping[str(item[0])] = item[1]
+                    except: pass
+                placeholders[ph_id] = mapping
+
+            for opt in opts:
+                label = sanitize_wp(opt.get('label', 'Untitled'))
+                funcs = [f for f in opt.get('functions', []) if f.get('type') == 'image']
+                ph_id = str(funcs[0].get('image_id')) if funcs else None
+                
+                for val in opt.get('values', []):
+                    thumb = val.get('thumb_image')
+                    val_id = str(val.get('image_id'))
+                    val_name = sanitize_wp(val.get('tooltip') or val.get('name') or val.get('value') or val_id)
+                    if not val_name: val_name = f"val_{val_id}"
+                    
+                    # Swatch
+                    if thumb and thumb.startswith('http'):
+                        ext = thumb.split('?')[0].split('.')[-1]
+                        if len(ext) > 4: ext = 'png'
+                        clipart_urls.append((thumb, f"customily/{label}/swatches/{val_name}.{ext}"))
+                        
+                    # Artwork
+                    if ph_id and ph_id in placeholders:
+                        artwork_path = placeholders[ph_id].get(val_id)
+                        if artwork_path:
+                            if artwork_path.startswith('/Content/'):
+                                artwork_path = artwork_path.replace('/Content/', '/', 1)
+                            full_url = f"https://cdn.customily.com{artwork_path}" if artwork_path.startswith('/') else f"https://cdn.customily.com/{artwork_path}"
+                            ext = full_url.split('?')[0].split('.')[-1]
+                            if len(ext) > 4: ext = 'png'
+                            clipart_urls.append((full_url, f"customily/{label}/artworks/{val_name}.{ext}"))
+                            
+            if clipart_urls:
+                self.log(f"  [Customily] Extracted {len(clipart_urls)} artwork/swatch files grouped by options!")
+                
+        except Exception as e:
+            self.log(f"  [WARN Customily] Extraction failed: {e}")
+
+        return clipart_urls
+
     def fetch_html_embedded_cliparts(self, product_url: str) -> list[tuple[str, str]]:
         """Lấy tất cả các file ảnh swatches/cliparts được nhúng trong HTML của sản phẩm (dành cho Trending Custom, v.v.)."""
         clipart_urls = []
@@ -652,6 +777,9 @@ class ShopifyDownloader:
             teeinblue_cliparts = self.fetch_teeinblue_cliparts(product_url, pdata)
             if teeinblue_cliparts:
                 clipart_items.extend(teeinblue_cliparts)
+            customily_cliparts = self.fetch_customily_cliparts(product_url, pdata)
+            if customily_cliparts:
+                clipart_items.extend(customily_cliparts)
             html_cliparts = self.fetch_html_embedded_cliparts(product_url)
             if html_cliparts:
                 clipart_items.extend(html_cliparts)
