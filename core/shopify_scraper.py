@@ -173,13 +173,10 @@ class ShopifyDownloader:
             if r.status_code == 200:
                 os.makedirs(os.path.dirname(long_out_path), exist_ok=True)
                 out_ext_new = out_path.lower().split('.')[-1]
-                if original_ext in ['png', 'jpg', 'jpeg', 'webp'] or out_ext_new in ['png', 'jpg', 'jpeg']:
+                if original_ext == 'webp' and out_ext_new == 'png':
                     try:
                         img = Image.open(io.BytesIO(r.content))
-                        if out_ext_new in ['jpg', 'jpeg'] and img.mode in ("RGBA", "P"):
-                            img = img.convert("RGB")
-                        save_fmt = "PNG" if out_ext_new == 'png' else "JPEG"
-                        img.save(long_out_path, format=save_fmt, dpi=(300, 300), quality=95)
+                        img.save(long_out_path, format="PNG", dpi=(300, 300))
                     except Exception:
                         with open(long_out_path, "wb") as f:
                             f.write(r.content)

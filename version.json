@@ -1,12 +1,12 @@
 {
-  "version": "1.1.1",
-  "release_notes": "Version 1.1.1",
+  "version": "1.1.2",
+  "release_notes": "Version 1.1.2: Preserve 100% original raw image quality for downloads",
   "windows": {
-    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.1/POD_Tools.exe",
-    "sha256": "922c183a5be0d7cf540f6a576ca4be725456dccadf5188a37e4ebf69a21e4ac8"
+    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.2/POD_Tools.exe",
+    "sha256": ""
   },
   "macos": {
-    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.1/POD_Tools_mac.zip",
-    "sha256": "2e2ab1c1d58d97aa8a167b9c90958e62c0423045114dcd3eae217acefb9a0da1"
+    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.2/POD_Tools_mac.zip",
+    "sha256": ""
   }
 }
