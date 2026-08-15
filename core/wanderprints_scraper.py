@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from core.config import *
-from core.utils import sanitize_wp
+from core.utils import sanitize_wp, gs_long_path
 from PIL import Image
 
 # Thread-local storage: mỗi thread dùng session riêng (thread-safe)
@@ -37,6 +37,7 @@ class Downloader:
     def download(self, url, save_path, label=""):
         if not self.is_running_check(): return False
         
+        save_path = os.path.normpath(save_path)
         tag = label or os.path.basename(save_path)
         original_ext = save_path.lower().split('.')[-1]
         out_path = save_path
@@ -44,7 +45,8 @@ class Downloader:
             out_path = save_path.rsplit('.', 1)[0] + '.png'
             tag = label or os.path.basename(out_path)
             
-        if os.path.exists(out_path):
+        long_out_path = gs_long_path(out_path)
+        if os.path.exists(long_out_path):
             self.log(f"  [SKIP] file đã tồn tại: {tag}"); return False
         if url in self.downloaded:
             self.log(f"  [SKIP] đã tải: {tag}"); return False
@@ -52,15 +54,16 @@ class Downloader:
         try:
             r = self._session.get(url, timeout=20)
             if r.status_code == 200:
-                if original_ext in ['png', 'jpg', 'jpeg', 'webp']:
-                    img = Image.open(io.BytesIO(r.content))
-                    out_ext_new = out_path.lower().split('.')[-1]
-                    if out_ext_new in ['jpg', 'jpeg'] and img.mode in ("RGBA", "P"):
-                        img = img.convert("RGB")
-                    save_fmt = "PNG" if out_ext_new == 'png' else "JPEG"
-                    img.save(out_path, format=save_fmt, dpi=(300, 300), quality=95)
+                os.makedirs(os.path.dirname(long_out_path), exist_ok=True)
+                out_ext_new = out_path.lower().split('.')[-1]
+                if original_ext == 'webp' and out_ext_new == 'png':
+                    try:
+                        img = Image.open(io.BytesIO(r.content))
+                        img.save(long_out_path, format="PNG", dpi=(300, 300))
+                    except Exception:
+                        with open(long_out_path, "wb") as f: f.write(r.content)
                 else:
-                    with open(out_path, "wb") as f: f.write(r.content)
+                    with open(long_out_path, "wb") as f: f.write(r.content)
                     
                 self.downloaded.add(url)
                 self.log(f"  ✓ {tag} ({len(r.content)//1024} KB)")

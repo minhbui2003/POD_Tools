@@ -29,18 +29,16 @@ def gs_download_image(url, folder, filename, is_running_check=None):
         print(f"    -> [SKIP] Đã tồn tại: {filename}"); return True
         
     def _save_r_content(content, fp, original_ext, current_ext):
-        if original_ext in ['png', 'jpg', 'jpeg', 'webp']:
+        long_fp = gs_long_path(fp)
+        os.makedirs(os.path.dirname(long_fp), exist_ok=True)
+        if original_ext == 'webp' and current_ext == 'png':
             try:
                 img = Image.open(io.BytesIO(content))
-                if current_ext in ['jpg', 'jpeg'] and img.mode in ('RGBA', 'P'):
-                    img = img.convert('RGB')
-                save_fmt = "PNG" if current_ext == 'png' else "JPEG"
-                img.save(fp, format=save_fmt, dpi=(300, 300), quality=95)
+                img.save(long_fp, format="PNG", dpi=(300, 300))
             except Exception as ex:
-                print(f"      [Image Parse Error] lưu webp/jpg/png lỗi {ex}")
-                with open(fp, 'wb') as f: f.write(content)
+                with open(long_fp, 'wb') as f: f.write(content)
         else:
-            with open(fp, 'wb') as f: f.write(content)
+            with open(long_fp, 'wb') as f: f.write(content)
 
     try:
         r = requests.get(target_url, timeout=30)
