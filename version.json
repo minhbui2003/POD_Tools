@@ -1,12 +1,12 @@
 {
   "version": "1.1.0",
-  "release_notes": "Version 1.1.0: Fix Windows long path MAX_PATH limits and duplicate handle folder error",
+  "release_notes": "Version 1.1.0",
   "windows": {
     "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.0/POD_Tools.exe",
-    "sha256": ""
+    "sha256": "7a9ec0600c293d8b663a20bb16021ff9f5555059d9747b0dc6d16fbf5deb2dea"
   },
   "macos": {
     "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.0/POD_Tools_mac.zip",
-    "sha256": ""
+    "sha256": "fcc71479c425033057ad766d64b60da11448c3ce3cb0128a7b46a3a618f7cfeb"
   }
 }
