@@ -1,12 +1,12 @@
 {
   "version": "1.1.4",
-  "release_notes": "Version 1.1.4: Universal HD artwork layer extraction and raw quality preservation across all tabs",
+  "release_notes": "Version 1.1.4",
   "windows": {
     "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.4/POD_Tools.exe",
-    "sha256": ""
+    "sha256": "372c28a0c05f0a557f7b76d2794765908e8fe64d082ef0414db09e27de37e233"
   },
   "macos": {
     "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.4/POD_Tools_mac.zip",
-    "sha256": ""
+    "sha256": "78cc5171400e20f741951d5a96ced6ae93e39443b8b63dcda6f326d0327ca71d"
   }
 }
