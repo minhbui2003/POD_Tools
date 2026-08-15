@@ -3,16 +3,20 @@ import json
 import os
 import time
 
-from PySide6.QtCore import QObject, Qt, Signal, Slot
+from PySide6.QtCore import QObject, QPoint, QRect, QSize, Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QLineEdit,
     QMessageBox,
     QPlainTextEdit,
     QProgressBar,
+    QPushButton,
+    QSizePolicy,
+    QStackedWidget,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -26,9 +30,124 @@ from core.wanderprints_scraper import Downloader
 from qt_gui.common import append_log, log_level_from_text, make_button, make_card, redirect_stdout_to, start_qworker
 
 
-
 OUTPUT_PLACEHOLDER = "Chọn thư mục lưu ảnh trước khi chạy!"
 _SECRET_KEY = "P0D-CR4WL-S3CR3T-K3Y-2025"
+
+
+class FlowLayout(QLayout):
+    def __init__(self, parent=None, margin=0, spacing=6):
+        super().__init__(parent)
+        if parent is not None:
+            self.setContentsMargins(margin, margin, margin, margin)
+        self.setSpacing(spacing)
+        self.itemList = []
+
+    def __del__(self):
+        item = self.takeAt(0)
+        while item:
+            item = self.takeAt(0)
+
+    def addItem(self, item):
+        self.itemList.append(item)
+
+    def count(self):
+        return len(self.itemList)
+
+    def itemAt(self, index):
+        if 0 <= index < len(self.itemList):
+            return self.itemList[index]
+        return None
+
+    def takeAt(self, index):
+        if 0 <= index < len(self.itemList):
+            return self.itemList.pop(index)
+        return None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._doLayout(QRect(0, 0, width, 0), True)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._doLayout(rect, False)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QSize()
+        for item in self.itemList:
+            size = size.expandedTo(item.minimumSize())
+        margin = self.contentsMargins().left()
+        size += QSize(2 * margin, 2 * margin)
+        return size
+
+    def _doLayout(self, rect, testOnly):
+        x = rect.x()
+        y = rect.y()
+        lineHeight = 0
+        spacing = self.spacing()
+
+        for item in self.itemList:
+            spaceX = spacing
+            spaceY = spacing
+
+            nextX = x + item.sizeHint().width() + spaceX
+            if nextX - spaceX > rect.right() and lineHeight > 0:
+                x = rect.x()
+                y = y + lineHeight + spaceY
+                nextX = x + item.sizeHint().width() + spaceX
+                lineHeight = 0
+
+            if not testOnly:
+                item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
+
+            x = nextX
+            lineHeight = max(lineHeight, item.sizeHint().height())
+
+        return y + lineHeight - rect.y()
+
+
+class FlowTabWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+
+        self.tab_bar_widget = QWidget()
+        self.flow_layout = FlowLayout(self.tab_bar_widget, margin=0, spacing=6)
+        layout.addWidget(self.tab_bar_widget)
+
+        self.stacked_widget = QStackedWidget()
+        layout.addWidget(self.stacked_widget, 1)
+
+        self.buttons = []
+
+    def addTab(self, widget, title):
+        index = self.stacked_widget.addWidget(widget)
+        btn = QPushButton(title)
+        btn.setProperty("tabButton", True)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.clicked.connect(lambda _, idx=index: self.setCurrentIndex(idx))
+        self.flow_layout.addWidget(btn)
+        self.buttons.append(btn)
+        if len(self.buttons) == 1:
+            self.setCurrentIndex(0)
+        return index
+
+    def setCurrentIndex(self, index):
+        self.stacked_widget.setCurrentIndex(index)
+        for i, btn in enumerate(self.buttons):
+            is_active = (i == index)
+            btn.setProperty("active", is_active)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
 
 
 def _xor_encrypt(text: str, key: str) -> str:
@@ -471,7 +590,7 @@ class CrawlPage(QWidget):
         key_row.addWidget(guide)
         root.addLayout(key_row)
 
-        self.tabs = QTabWidget()
+        self.tabs = FlowTabWidget()
         self.wp_tab = ProductTab("Wanderprints", self.current_key, is_gossby=False)
         self.gs_tab = ProductTab("Gossby", self.current_key, is_gossby=True)
         self.dc_tab = ProductTab("DemCanvas", self.current_key, is_demcanvas=True)
@@ -479,6 +598,8 @@ class CrawlPage(QWidget):
         self.tc_tab = ProductTab("Trending Custom", self.current_key, is_shopify=True)
         self.ph_tab = ProductTab("Pawfect House", self.current_key, is_shopify=True)
         self.wr_tab = ProductTab("Wrappiness", self.current_key, is_shopify=True)
+        self.tn_tab = ProductTab("The Nursera", self.current_key, is_shopify=True)
+        self.sb_tab = ProductTab("Sistabag", self.current_key, is_shopify=True)
 
         self.tabs.addTab(self.wp_tab, "Wanderprints")
         self.tabs.addTab(self.gs_tab, "Gossby")
@@ -487,6 +608,8 @@ class CrawlPage(QWidget):
         self.tabs.addTab(self.tc_tab, "Trending Custom")
         self.tabs.addTab(self.ph_tab, "Pawfect House")
         self.tabs.addTab(self.wr_tab, "Wrappiness")
+        self.tabs.addTab(self.tn_tab, "The Nursera")
+        self.tabs.addTab(self.sb_tab, "Sistabag")
         root.addWidget(self.tabs, 1)
 
     def current_key(self):
@@ -494,7 +617,7 @@ class CrawlPage(QWidget):
 
     def _sync_key_state(self):
         has_key = bool(self.current_key())
-        for tab in (self.wp_tab, self.gs_tab, self.dc_tab, self.mc_tab, self.tc_tab, self.ph_tab, self.wr_tab):
+        for tab in (self.wp_tab, self.gs_tab, self.dc_tab, self.mc_tab, self.tc_tab, self.ph_tab, self.wr_tab, self.tn_tab, self.sb_tab):
             tab.set_has_key(has_key)
 
 

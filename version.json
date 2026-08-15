@@ -1,12 +1,12 @@
 {
-  "version": "1.0.8",
-  "release_notes": "Version 1.0.8",
+  "version": "1.0.9",
+  "release_notes": "Version 1.0.9: Add The Nursera and Sistabag tabs, Customix engine support, multiline tab bar",
   "windows": {
-    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.0.8/POD_Tools.exe",
-    "sha256": "95d64f966e0c1c1262344dd920e28e3311e98ba4649feefac51ed0b25df61ee5"
+    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.0.9/POD_Tools.exe",
+    "sha256": ""
   },
   "macos": {
-    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.0.8/POD_Tools_mac.zip",
-    "sha256": "696910a6405dfa29f3788cdcba03da7822d2d006085526a98528f8a2096d7257"
+    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.0.9/POD_Tools_mac.zip",
+    "sha256": ""
   }
 }

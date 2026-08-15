@@ -181,6 +181,23 @@ QTabBar::tab:selected {{
     color: {TEXT};
     border-color: {BUTTON_PRIMARY_BORDER};
 }}
+QPushButton[tabButton="true"] {{
+    background: #FFFFFF;
+    color: {MUTED};
+    border: 1px solid {PANEL_BORDER};
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 600;
+}}
+QPushButton[tabButton="true"]:hover {{
+    border-color: {BUTTON_PRIMARY_BORDER};
+}}
+QPushButton[tabButton="true"][active="true"] {{
+    background: {BUTTON_PRIMARY_BG};
+    color: {TEXT};
+    border-color: {BUTTON_PRIMARY_BORDER};
+    font-weight: 700;
+}}
 QProgressBar {{
     background: {BUTTON_SECONDARY_BG};
     border: 1px solid {PANEL_BORDER};

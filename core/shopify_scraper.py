@@ -573,10 +573,13 @@ class ShopifyDownloader:
                 if r1 and r1.status_code == 200:
                     try:
                         data1 = r1.json()
-                        pconfig = data1.get('productConfig', {})
+                        pconfig = data1.get('productConfig', {}) or {}
                         if pconfig.get('initial_product_id'):
                             customily_product_id = pconfig.get('initial_product_id')
-                            opts = data1.get('sets', [{}])[0].get('options', [])
+                            sets = data1.get('sets') or []
+                            for s in sets:
+                                if isinstance(s, dict):
+                                    opts.extend(s.get('options', []) or [])
                             break
                     except Exception:
                         pass
@@ -594,27 +597,40 @@ class ShopifyDownloader:
                 
             prod_data = r2.json()
             
-            # Map placeholders
+            # Map placeholders from preview or listPreviews
+            previews = []
+            if prod_data.get('preview') and isinstance(prod_data.get('preview'), dict):
+                previews.append(prod_data.get('preview'))
+            if prod_data.get('listPreviews') and isinstance(prod_data.get('listPreviews'), list):
+                previews.extend([p for p in prod_data.get('listPreviews') if isinstance(p, dict)])
+
             placeholders = {}
-            for ph in prod_data.get('preview', {}).get('imagePlaceHoldersPreview', []):
-                ph_id = str(ph.get('id'))
-                dp = ph.get('dynamicImagesPath')
-                mapping = {}
-                if dp:
-                    try:
-                        paths = json.loads(dp)
-                        for item in paths:
-                            if len(item) >= 2 and isinstance(item[1], str):
-                                mapping[str(item[0])] = item[1]
-                    except: pass
-                placeholders[ph_id] = mapping
+            for prev in previews:
+                for ph in prev.get('imagePlaceHoldersPreview', []) or []:
+                    if not isinstance(ph, dict):
+                        continue
+                    ph_id = str(ph.get('id'))
+                    dp = ph.get('dynamicImagesPath')
+                    mapping = placeholders.setdefault(ph_id, {})
+                    if dp:
+                        try:
+                            paths = json.loads(dp)
+                            for item in paths:
+                                if len(item) >= 2 and isinstance(item[1], str):
+                                    mapping[str(item[0])] = item[1]
+                        except Exception:
+                            pass
 
             for opt in opts:
+                if not isinstance(opt, dict):
+                    continue
                 label = sanitize_wp(opt.get('label', 'Untitled'))
-                funcs = [f for f in opt.get('functions', []) if f.get('type') == 'image']
+                funcs = [f for f in opt.get('functions', []) if isinstance(f, dict) and f.get('type') == 'image']
                 ph_id = str(funcs[0].get('image_id')) if funcs else None
                 
-                for val in opt.get('values', []):
+                for val in opt.get('values', []) or []:
+                    if not isinstance(val, dict):
+                        continue
                     thumb = val.get('thumb_image')
                     val_id = str(val.get('image_id'))
                     val_name = sanitize_wp(val.get('tooltip') or val.get('name') or val.get('value') or val_id)
@@ -636,12 +652,117 @@ class ShopifyDownloader:
                             ext = full_url.split('?')[0].split('.')[-1]
                             if len(ext) > 4: ext = 'png'
                             clipart_urls.append((full_url, f"customily/{label}/artworks/{val_name}.{ext}"))
-                            
+
+            # Deduplicate
+            seen_urls = set()
+            unique_cliparts = []
+            for u, p in clipart_urls:
+                if u not in seen_urls:
+                    seen_urls.add(u)
+                    unique_cliparts.append((u, p))
+            clipart_urls = unique_cliparts
+
             if clipart_urls:
                 self.log(f"  [Customily] Extracted {len(clipart_urls)} artwork/swatch files grouped by options!")
                 
         except Exception as e:
             self.log(f"  [WARN Customily] Extraction failed: {e}")
+
+        return clipart_urls
+
+    def fetch_customix_cliparts(self, product_url: str, pdata: dict) -> list[tuple[str, str]]:
+        """Lấy tất cả các file ảnh clipart artworks/swatches từ Customix Engine (dành cho Customix / Sistabag v.v.)."""
+        clipart_urls = []
+        try:
+            html = self._get_product_html(product_url)
+            if not html or 'customix' not in html.lower():
+                return []
+
+            # 1. Extract campaign JSON URL or campaign ID from HTML
+            campaign_urls = re.findall(r'https://cdn\.customix\.io/public-campaigns/[a-zA-Z0-9\-_]+\.json[^\s\'"<>\)]*', html)
+            if not campaign_urls:
+                match = re.search(r'CUSTOMIX_CAMPAIGN\s*=\s*[\'"]?(\{[\s\S]*?\})[\'"]?', html)
+                if match:
+                    try:
+                        camp_obj = json.loads(match.group(1))
+                        u = camp_obj.get("url")
+                        if u:
+                            campaign_urls.append(u)
+                    except Exception:
+                        pass
+
+            if not campaign_urls:
+                return []
+
+            campaign_url = campaign_urls[0]
+            self.log(f"  [Customix] Extracted Customix campaign JSON: {campaign_url[:80]}...")
+            
+            res = self._fetch_url(campaign_url, timeout=15)
+            if not res or res.status_code != 200:
+                return []
+
+            data = res.json()
+            custom_options = data.get("custom_options", []) or []
+
+            def _extract_img_urls(obj):
+                urls = []
+                if isinstance(obj, dict):
+                    for k, v in obj.items():
+                        if isinstance(v, str) and (v.startswith("http") or v.startswith("//") or v.startswith("public/") or v.startswith("assets/") or v.startswith("uploads/")):
+                            urls.append((k, v))
+                        elif isinstance(v, (dict, list)):
+                            urls.extend(_extract_img_urls(v))
+                elif isinstance(obj, list):
+                    for item in obj:
+                        urls.extend(_extract_img_urls(item))
+                return urls
+
+            for idx, opt in enumerate(custom_options):
+                if not isinstance(opt, dict):
+                    continue
+                label = sanitize_wp(opt.get("label") or opt.get("title") or opt.get("name") or f"Option_{idx}")
+                values = opt.get("values", []) or opt.get("items", []) or opt.get("options", [])
+                if not isinstance(values, list):
+                    continue
+
+                for val_idx, val in enumerate(values):
+                    if not isinstance(val, dict):
+                        continue
+                    val_label = sanitize_wp(val.get("label") or val.get("title") or val.get("name") or val.get("value") or f"val_{val_idx}")
+                    nested_imgs = _extract_img_urls(val)
+                    for key_name, img_u in nested_imgs:
+                        if not img_u:
+                            continue
+                        if img_u.startswith("//"):
+                            full_url = "https:" + img_u
+                        elif img_u.startswith("http"):
+                            full_url = img_u
+                        else:
+                            full_url = f"https://cdn.customix.io/{img_u}"
+
+                        filename = os.path.basename(full_url.split('?')[0])
+                        ext = filename.split('.')[-1].lower() if '.' in filename else 'png'
+                        if len(ext) > 4:
+                            ext = 'png'
+                        
+                        folder_type = "artworks" if key_name in ["value", "image", "layer_src", "src", "artwork"] else "swatches"
+                        rel_path = f"customix/{label}/{folder_type}/{val_label}_{key_name}.{ext}"
+                        clipart_urls.append((full_url, rel_path))
+
+            # Deduplicate while preserving order
+            seen_urls = set()
+            unique_cliparts = []
+            for u, p in clipart_urls:
+                if u not in seen_urls:
+                    seen_urls.add(u)
+                    unique_cliparts.append((u, p))
+            clipart_urls = unique_cliparts
+
+            if clipart_urls:
+                self.log(f"  [Customix] Extracted {len(clipart_urls)} artwork/swatch files grouped by options!")
+
+        except Exception as e:
+            self.log(f"  [WARN Customix] Extraction failed: {e}")
 
         return clipart_urls
 
@@ -690,9 +811,8 @@ class ShopifyDownloader:
         title = pdata.get("title") or "Untitled Product"
         handle = pdata.get("handle") or sanitize_wp(title)
         
-        # Define output directory: output_root/site_domain/product_handle
-        site_folder = sanitize_wp(domain.replace('.', '_'))
-        target_dir = os.path.join(self.output_root, site_folder, sanitize_wp(handle))
+        # Define output directory: output_root/product_handle
+        target_dir = os.path.join(self.output_root, sanitize_wp(handle))
         os.makedirs(target_dir, exist_ok=True)
 
         self.log(f"=== STARTING SHOPIFY PRODUCT SCRAPE ===")
@@ -780,6 +900,9 @@ class ShopifyDownloader:
             customily_cliparts = self.fetch_customily_cliparts(product_url, pdata)
             if customily_cliparts:
                 clipart_items.extend(customily_cliparts)
+            customix_cliparts = self.fetch_customix_cliparts(product_url, pdata)
+            if customix_cliparts:
+                clipart_items.extend(customix_cliparts)
             html_cliparts = self.fetch_html_embedded_cliparts(product_url)
             if html_cliparts:
                 clipart_items.extend(html_cliparts)
