@@ -214,13 +214,20 @@ class Downloader:
             try:
                 gp_resp = self._session.get(GET_PRODUCT_URL, params={"productId": initial_pid, "clientVersion": "3.10.85", "useListEPS": "true"}, headers=GET_PRODUCT_HEADERS, timeout=15)
                 if gp_resp.status_code == 200:
-                    image_placeholders = gp_resp.json().get("preview", {}).get("imagePlaceHoldersPreview", [])
+                    gp_json = gp_resp.json()
+                    previews = []
+                    if gp_json.get("preview") and isinstance(gp_json.get("preview"), dict):
+                        previews.append(gp_json.get("preview"))
+                    if gp_json.get("listPreviews") and isinstance(gp_json.get("listPreviews"), list):
+                        previews.extend([p for p in gp_json.get("listPreviews") if isinstance(p, dict)])
+                    for p in previews:
+                        image_placeholders.extend(p.get("imagePlaceHoldersPreview", []) or [])
                     self.log(f"  -> {len(image_placeholders)} imagePlaceHolder(s)")
                 else: self.log(f"  -> [WARN] GetProduct HTTP {gp_resp.status_code}")
             except Exception as e: self.log(f"  -> [ERROR GetProduct] {e}")
         else: self.log("\n[2c] Không có initial_product_id — bỏ qua imagePlaceHolders")
-        placeholder_lib_map = {str(ph.get("id")): ph.get("imageLibraryId") for ph in image_placeholders if ph.get("id") is not None and ph.get("imageLibraryId") is not None}
-        swatch_opts = [opt for s in sets for opt in s.get("options", []) if opt.get("type") == "Swatch"]
+        placeholder_lib_map = {str(ph.get("id")): ph.get("imageLibraryId") for ph in image_placeholders if isinstance(ph, dict) and ph.get("id") is not None and ph.get("imageLibraryId") is not None}
+        swatch_opts = [opt for s in sets for opt in s.get("options", []) if opt.get("values")]
         self.log(f"[OK] {len(swatch_opts)} Swatch option(s)")
         dir_cliparts = os.path.join(self.output_root, slug_prefix, "cliparts")
         dir_variant  = os.path.join(self.output_root, slug_prefix, "variantCombinations")
@@ -263,38 +270,47 @@ class Downloader:
                 functions = swatch.get("functions", []); position = v.get("image_id")
                 if not functions or position is None:
                     return
-                slot_id = str(functions[0].get("image_id", ""))
-                lib_id = placeholder_lib_map.get(slot_id)
-                if not lib_id:
-                    return
-                cache_key = (lib_id, position)
-                # Kiểm tra cache trước
-                with lib_cache_lock:
-                    cached = lib_cache.get(cache_key)
-                if cached is None:
-                    try:
-                        lib_url = f"{CUSTOMILY_BASE}/api/Libraries/{lib_id}/Elements/Position/{position}"
-                        lib_resp = sess.get(lib_url, headers=API_HEADERS_CU, timeout=15)
-                        if lib_resp.status_code == 200:
-                            cached = lib_resp.json().get("Path", "")
-                        else:
-                            self.log(f"  [WARN] Libraries API HTTP {lib_resp.status_code}")
-                            cached = ""
-                    except Exception as e:
-                        self.log(f"  [ERROR Libraries] {e}"); cached = ""
+                for func in functions:
+                    if not isinstance(func, dict):
+                        continue
+                    slot_id = str(func.get("image_id", ""))
+                    lib_id = placeholder_lib_map.get(slot_id)
+                    if not lib_id:
+                        continue
+                    cache_key = (lib_id, position)
                     with lib_cache_lock:
-                        lib_cache[cache_key] = cached
-                if cached:
-                    full_url = CUSTOMILY_BASE + cached
-                    ext = (cached.split("?")[0].split(".")[-1])[:5] or "png"
-                    self.download(full_url, os.path.join(clip_group, f"{val_slug}.{ext}"), f"clip/{label_slug}/{val_slug}")
+                        cached = lib_cache.get(cache_key)
+                    if cached is None:
+                        try:
+                            lib_url = f"{CUSTOMILY_BASE}/api/Libraries/{lib_id}/Elements/Position/{position}"
+                            lib_resp = sess.get(lib_url, headers=API_HEADERS_CU, timeout=15)
+                            if lib_resp.status_code == 200:
+                                cached = lib_resp.json().get("Path", "")
+                            else:
+                                self.log(f"  [WARN] Libraries API HTTP {lib_resp.status_code}")
+                                cached = ""
+                        except Exception as e:
+                            self.log(f"  [ERROR Libraries] {e}"); cached = ""
+                        with lib_cache_lock:
+                            lib_cache[cache_key] = cached
+                    if cached:
+                        clean_path = cached
+                        if clean_path.startswith('/Content/'):
+                            clean_path = clean_path.replace('/Content/', '/', 1)
+                        full_url = f"{CUSTOMILY_BASE}{clean_path}" if clean_path.startswith('/') else f"{CUSTOMILY_BASE}/{clean_path}"
+                        ext = (clean_path.split("?")[0].split(".")[-1])[:5] or "png"
+                        func_tag = f"_{slot_id}" if len(functions) > 1 else ""
+                        self.download(full_url, os.path.join(clip_group, f"{val_slug}{func_tag}.{ext}"), f"clip/{label_slug}/{val_slug}{func_tag}")
             else:
                 try:
                     gp = sess.get(GET_PRODUCT_URL, params={"productId": cust_pid, "clientVersion": "3.10.85", "useListEPS": "true"}, headers=GET_PRODUCT_HEADERS, timeout=15).json()
                     img_path = gp.get("preview", {}).get("imagePath", "")
                     if img_path:
-                        full_url = CUSTOMILY_BASE + img_path
-                        ext = (img_path.split("?")[0].split(".")[-1])[:5] or "jpg"
+                        clean_path = img_path
+                        if clean_path.startswith('/Content/'):
+                            clean_path = clean_path.replace('/Content/', '/', 1)
+                        full_url = f"{CUSTOMILY_BASE}{clean_path}" if clean_path.startswith('/') else f"{CUSTOMILY_BASE}/{clean_path}"
+                        ext = (clean_path.split("?")[0].split(".")[-1])[:5] or "jpg"
                         self.download(full_url, os.path.join(clip_group, f"{val_slug}.{ext}"), f"clip/{label_slug}/{val_slug}")
                 except Exception as e: self.log(f"  [ERROR GetProduct] {e}")
 
