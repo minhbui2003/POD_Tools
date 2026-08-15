@@ -579,50 +579,46 @@ class ShopifyDownloader:
                         pconfig = data1.get('productConfig', {}) or {}
                         if pconfig.get('initial_product_id'):
                             customily_product_id = pconfig.get('initial_product_id')
-                            sets = data1.get('sets') or []
-                            for s in sets:
-                                if isinstance(s, dict):
-                                    opts.extend(s.get('options', []) or [])
+                        sets = data1.get('sets') or []
+                        for s in sets:
+                            if isinstance(s, dict):
+                                opts.extend(s.get('options', []) or [])
+                        if opts or customily_product_id:
                             break
                     except Exception:
                         pass
             
-            if not customily_product_id:
+            if not opts and not customily_product_id:
                 return []
                 
-            self.log(f"  [Customily] Extracted Customily Product UUID: {customily_product_id}")
-            
-            # 2. Fetch product config (GetProduct)
-            prod_url = f"https://app.customily.com/api/Product/GetProduct?productId={customily_product_id}&clientVersion=3.10.93&useListEPS=true"
-            r2 = self._fetch_url(prod_url, timeout=10)
-            if not r2 or r2.status_code != 200:
-                return []
-                
-            prod_data = r2.json()
-            
-            # Map placeholders from preview or listPreviews
-            previews = []
-            if prod_data.get('preview') and isinstance(prod_data.get('preview'), dict):
-                previews.append(prod_data.get('preview'))
-            if prod_data.get('listPreviews') and isinstance(prod_data.get('listPreviews'), list):
-                previews.extend([p for p in prod_data.get('listPreviews') if isinstance(p, dict)])
-
             placeholders = {}
-            for prev in previews:
-                for ph in prev.get('imagePlaceHoldersPreview', []) or []:
-                    if not isinstance(ph, dict):
-                        continue
-                    ph_id = str(ph.get('id'))
-                    dp = ph.get('dynamicImagesPath')
-                    mapping = placeholders.setdefault(ph_id, {})
-                    if dp:
-                        try:
-                            paths = json.loads(dp)
-                            for item in paths:
-                                if len(item) >= 2 and isinstance(item[1], str):
-                                    mapping[str(item[0])] = item[1]
-                        except Exception:
-                            pass
+            if customily_product_id:
+                self.log(f"  [Customily] Extracted Customily Product UUID: {customily_product_id}")
+                prod_url = f"https://app.customily.com/api/Product/GetProduct?productId={customily_product_id}&clientVersion=3.10.93&useListEPS=true"
+                r2 = self._fetch_url(prod_url, timeout=10)
+                if r2 and r2.status_code == 200:
+                    prod_data = r2.json()
+                    previews = []
+                    if prod_data.get('preview') and isinstance(prod_data.get('preview'), dict):
+                        previews.append(prod_data.get('preview'))
+                    if prod_data.get('listPreviews') and isinstance(prod_data.get('listPreviews'), list):
+                        previews.extend([p for p in prod_data.get('listPreviews') if isinstance(p, dict)])
+
+                    for prev in previews:
+                        for ph in prev.get('imagePlaceHoldersPreview', []) or []:
+                            if not isinstance(ph, dict):
+                                continue
+                            ph_id = str(ph.get('id'))
+                            dp = ph.get('dynamicImagesPath')
+                            mapping = placeholders.setdefault(ph_id, {})
+                            if dp:
+                                try:
+                                    paths = json.loads(dp)
+                                    for item in paths:
+                                        if len(item) >= 2 and isinstance(item[1], str):
+                                            mapping[str(item[0])] = item[1]
+                                except Exception:
+                                    pass
 
             for opt in opts:
                 if not isinstance(opt, dict):
