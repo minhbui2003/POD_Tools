@@ -3,10 +3,18 @@
   "release_notes": "Version 1.1.0",
   "windows": {
     "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.0/POD_Tools.exe",
+<<<<<<< Updated upstream
     "sha256": "7a9ec0600c293d8b663a20bb16021ff9f5555059d9747b0dc6d16fbf5deb2dea"
   },
   "macos": {
     "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.0/POD_Tools_mac.zip",
     "sha256": "fcc71479c425033057ad766d64b60da11448c3ce3cb0128a7b46a3a618f7cfeb"
+=======
+    "sha256": "4bdc981f313400aee88b78327b98da8bb732eb8d006f0b0a4543c1712c148bac"
+  },
+  "macos": {
+    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.0/POD_Tools_mac.zip",
+    "sha256": "5f6af400fb1d7d6c079e2b37b27c36955e74fa86c17ae53d689b02dd04c423a4"
+>>>>>>> Stashed changes
   }
 }
