@@ -564,37 +564,51 @@ class ShopifyDownloader:
             if not myshopify_domains or not product_id:
                 return []
 
-            # 1. Fetch unified settings to get Customily Product ID and options
-            customily_product_id = None
+            # 1. Fetch unified settings to get Customily Product IDs and options
+            customily_product_ids = set()
             opts = []
+            
+            def _collect_pids(obj):
+                pids = set()
+                if isinstance(obj, dict):
+                    for k, v in obj.items():
+                        if k in ["product_id", "initial_product_id", "template_id", "templateId"] and isinstance(v, str) and len(v) > 20:
+                            pids.add(v)
+                        else:
+                            pids.update(_collect_pids(v))
+                elif isinstance(obj, list):
+                    for item in obj:
+                        pids.update(_collect_pids(item))
+                return pids
+
             for d in myshopify_domains:
                 unified_url = f"https://sh.customily.com/api/settings/unified/{pdata.get('handle')}?shop={d}&productId={product_id}"
                 r1 = self._fetch_url(unified_url, timeout=10)
                 if r1 and r1.status_code == 200:
                     try:
                         data1 = r1.json()
-                        pconfig = data1.get('productConfig', {}) or {}
-                        if pconfig.get('initial_product_id'):
-                            customily_product_id = pconfig.get('initial_product_id')
+                        customily_product_ids.update(_collect_pids(data1))
                         sets = data1.get('sets') or []
                         for s in sets:
                             if isinstance(s, dict):
                                 opts.extend(s.get('options', []) or [])
-                        if opts or customily_product_id:
+                        if opts or customily_product_ids:
                             break
                     except Exception:
                         pass
             
-            if not opts and not customily_product_id:
+            if not opts and not customily_product_ids:
                 return []
                 
             placeholders = {}
-            if customily_product_id:
-                self.log(f"  [Customily] Extracted Customily Product UUID: {customily_product_id}")
-                prod_url = f"https://app.customily.com/api/Product/GetProduct?productId={customily_product_id}&clientVersion=3.10.93&useListEPS=true"
+            for pid in customily_product_ids:
+                self.log(f"  [Customily] Extracted Customily Product UUID: {pid}")
+                prod_url = f"https://app.customily.com/api/Product/GetProduct?productId={pid}&clientVersion=3.10.93&useListEPS=true"
                 r2 = self._fetch_url(prod_url, timeout=10)
                 if r2 and r2.status_code == 200:
                     prod_data = r2.json()
+                    data_text = r2.text
+                    
                     previews = []
                     if prod_data.get('preview') and isinstance(prod_data.get('preview'), dict):
                         previews.append(prod_data.get('preview'))
@@ -616,6 +630,13 @@ class ShopifyDownloader:
                                             mapping[str(item[0])] = item[1]
                                 except Exception:
                                     pass
+
+                    # Extract raw product-images artwork layers
+                    matches = re.findall(r'/(?:Content/)?product-images/([a-zA-Z0-9\-_/]+\.(?:png|jpg|jpeg|webp))', data_text, re.IGNORECASE)
+                    for m in matches:
+                        full_u = f"https://cdn.customily.com/product-images/{m}" if not m.startswith('product-images/') else f"https://cdn.customily.com/{m}"
+                        clean_fname = m.replace('/', '_')
+                        clipart_urls.append((full_u, f"customily/product_artworks/{clean_fname}"))
 
             for opt in opts:
                 if not isinstance(opt, dict):

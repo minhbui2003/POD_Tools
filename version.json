@@ -1,12 +1,12 @@
 {
-  "version": "1.1.2",
-  "release_notes": "Version 1.1.2",
+  "version": "1.1.3",
+  "release_notes": "Version 1.1.3: Support extracting full Customily product-images artwork layers",
   "windows": {
-    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.2/POD_Tools.exe",
-    "sha256": "0a63e77b5b1a97cbfdb5c07725f0da4e8d57adf481f285fc324ae2b51987e496"
+    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.3/POD_Tools.exe",
+    "sha256": ""
   },
   "macos": {
-    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.2/POD_Tools_mac.zip",
-    "sha256": "137fb8d895580afe4769bd10d4ada01f91725f8bfb8fa28cd2cccd81d433efbb"
+    "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.3/POD_Tools_mac.zip",
+    "sha256": ""
   }
 }
