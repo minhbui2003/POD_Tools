@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from PIL import Image
 import lzstring
 
-from core.utils import sanitize_wp
+from core.utils import sanitize_wp, gs_long_path
 
 CUSTOMALL_KEY = 'r?2A3&"/(3L,q;u4NsdH'
 
@@ -150,6 +150,7 @@ class ShopifyDownloader:
         if not self.is_running_check():
             return False
 
+        save_path = os.path.normpath(save_path)
         tag = label or os.path.basename(save_path)
         original_ext = save_path.lower().split('.')[-1]
         out_path = save_path
@@ -157,7 +158,9 @@ class ShopifyDownloader:
             out_path = save_path.rsplit('.', 1)[0] + '.png'
             tag = label or os.path.basename(out_path)
 
-        if os.path.exists(out_path):
+        long_out_path = gs_long_path(out_path)
+
+        if os.path.exists(long_out_path):
             self.log(f"  [SKIP] File already exists: {tag}")
             return False
         if url in self.downloaded:
@@ -168,7 +171,7 @@ class ShopifyDownloader:
             sess = _get_thread_session()
             r = sess.get(url, timeout=20)
             if r.status_code == 200:
-                os.makedirs(os.path.dirname(out_path), exist_ok=True)
+                os.makedirs(os.path.dirname(long_out_path), exist_ok=True)
                 out_ext_new = out_path.lower().split('.')[-1]
                 if original_ext in ['png', 'jpg', 'jpeg', 'webp'] or out_ext_new in ['png', 'jpg', 'jpeg']:
                     try:
@@ -176,12 +179,12 @@ class ShopifyDownloader:
                         if out_ext_new in ['jpg', 'jpeg'] and img.mode in ("RGBA", "P"):
                             img = img.convert("RGB")
                         save_fmt = "PNG" if out_ext_new == 'png' else "JPEG"
-                        img.save(out_path, format=save_fmt, dpi=(300, 300), quality=95)
+                        img.save(long_out_path, format=save_fmt, dpi=(300, 300), quality=95)
                     except Exception:
-                        with open(out_path, "wb") as f:
+                        with open(long_out_path, "wb") as f:
                             f.write(r.content)
                 else:
-                    with open(out_path, "wb") as f:
+                    with open(long_out_path, "wb") as f:
                         f.write(r.content)
 
                 self.downloaded.add(url)
@@ -811,9 +814,13 @@ class ShopifyDownloader:
         title = pdata.get("title") or "Untitled Product"
         handle = pdata.get("handle") or sanitize_wp(title)
         
-        # Define output directory: output_root/product_handle
-        target_dir = os.path.join(self.output_root, sanitize_wp(handle))
-        os.makedirs(target_dir, exist_ok=True)
+        clean_handle = sanitize_wp(handle)
+        norm_output_root = os.path.normpath(self.output_root)
+        if os.path.basename(norm_output_root) == clean_handle:
+            target_dir = norm_output_root
+        else:
+            target_dir = os.path.join(norm_output_root, clean_handle)
+        os.makedirs(gs_long_path(target_dir), exist_ok=True)
 
         self.log(f"=== STARTING SHOPIFY PRODUCT SCRAPE ===")
         self.log(f"Website: {domain}")
