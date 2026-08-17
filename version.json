@@ -1,12 +1,12 @@
 {
   "version": "1.1.6",
-  "release_notes": "Version 1.1.6: Fix Wanderprints Customily multi-condition option scanning, position-based layer filenames, and multi-product placeholders",
+  "release_notes": "Version 1.1.6",
   "windows": {
     "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.6/POD_Tools.exe",
-    "sha256": ""
+    "sha256": "098397c5d04b2cf1211a28cb8fbf899241695d5e55c99c74e758fb4c7a58f214"
   },
   "macos": {
     "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.6/POD_Tools_mac.zip",
-    "sha256": ""
+    "sha256": "2b5d584f9d73c1a578ef1a457c1c0f22f8d7f0b6c462a5ddb94f334509de89b3"
   }
 }
