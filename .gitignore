@@ -15,5 +15,10 @@ dist_*/
 .DS_Store
 Thumbs.db
 
-# Downloads
+# Downloads & scratch
 downloads/
+download_images/
+core/download_images/
+*.txt
+gossby_*.json
+test_*.py

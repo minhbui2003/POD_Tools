@@ -35,6 +35,6 @@ GET_PRODUCT_HEADERS = {
 # ─────────────────────────────────────────────
 # Update Configurations
 # ─────────────────────────────────────────────
-CURRENT_VERSION = "1.1.5"
+CURRENT_VERSION = "1.1.6"
 # Đổi URL này sang URL raw file version.json thực tế của bạn trên Github hoặc Server
 UPDATE_JSON_URL = "https://raw.githubusercontent.com/minhbui2003/POD_Tools/main/version.json"

@@ -207,25 +207,37 @@ class Downloader:
             json.dump(cu_data, _f, indent=2, ensure_ascii=False)
         self.log(f"  → Đã lưu Customily config: customily_config.json")
         sets = cu_data.get("sets", [])
-        image_placeholders = []
+        # Thu thập placeholders từ initial_product_id và tất cả product_id của các options
+        pids_to_fetch = set()
         initial_pid = cu_data.get("productConfig", {}).get("initial_product_id", "")
         if initial_pid:
-            self.log(f"\n[2c] GetProduct initial_product_id={initial_pid}")
-            try:
-                gp_resp = self._session.get(GET_PRODUCT_URL, params={"productId": initial_pid, "clientVersion": "3.10.85", "useListEPS": "true"}, headers=GET_PRODUCT_HEADERS, timeout=15)
-                if gp_resp.status_code == 200:
-                    gp_json = gp_resp.json()
-                    previews = []
-                    if gp_json.get("preview") and isinstance(gp_json.get("preview"), dict):
-                        previews.append(gp_json.get("preview"))
-                    if gp_json.get("listPreviews") and isinstance(gp_json.get("listPreviews"), list):
-                        previews.extend([p for p in gp_json.get("listPreviews") if isinstance(p, dict)])
-                    for p in previews:
-                        image_placeholders.extend(p.get("imagePlaceHoldersPreview", []) or [])
-                    self.log(f"  -> {len(image_placeholders)} imagePlaceHolder(s)")
-                else: self.log(f"  -> [WARN] GetProduct HTTP {gp_resp.status_code}")
-            except Exception as e: self.log(f"  -> [ERROR GetProduct] {e}")
-        else: self.log("\n[2c] Không có initial_product_id — bỏ qua imagePlaceHolders")
+            pids_to_fetch.add(initial_pid)
+        for s in sets:
+            for opt in s.get("options", []):
+                for v in opt.get("values", []):
+                    if v.get("product_id"):
+                        pids_to_fetch.add(v.get("product_id"))
+
+        image_placeholders = []
+        if pids_to_fetch:
+            self.log(f"\n[2c] GetProduct cho {len(pids_to_fetch)} product_id...")
+            for pid in pids_to_fetch:
+                try:
+                    gp_resp = self._session.get(GET_PRODUCT_URL, params={"productId": pid, "clientVersion": "3.10.85", "useListEPS": "true"}, headers=GET_PRODUCT_HEADERS, timeout=15)
+                    if gp_resp.status_code == 200:
+                        gp_json = gp_resp.json()
+                        previews = []
+                        if gp_json.get("preview") and isinstance(gp_json.get("preview"), dict):
+                            previews.append(gp_json.get("preview"))
+                        if gp_json.get("listPreviews") and isinstance(gp_json.get("listPreviews"), list):
+                            previews.extend([p for p in gp_json.get("listPreviews") if isinstance(p, dict)])
+                        for p in previews:
+                            image_placeholders.extend(p.get("imagePlaceHoldersPreview", []) or [])
+                except Exception as e:
+                    self.log(f"  -> [ERROR GetProduct pid={pid}] {e}")
+            self.log(f"  -> {len(image_placeholders)} imagePlaceHolder(s)")
+        else:
+            self.log("\n[2c] Không có product_id — bỏ qua imagePlaceHolders")
         placeholder_lib_map = {str(ph.get("id")): ph.get("imageLibraryId") for ph in image_placeholders if isinstance(ph, dict) and ph.get("id") is not None and ph.get("imageLibraryId") is not None}
         swatch_opts = [opt for s in sets for opt in s.get("options", []) if opt.get("values")]
         self.log(f"[OK] {len(swatch_opts)} Swatch option(s)")
@@ -263,9 +275,11 @@ class Downloader:
             sess = _get_thread_session()  # thread-safe session
             kid_val = v.get("value"); cust_pid = v.get("product_id")
             thumb_url = v.get("thumb_image") or ""; val_slug = sanitize_wp(str(kid_val))
+            opt_id = swatch.get("id", "")
             if thumb_url:
                 ext = (thumb_url.split("?")[0].split(".")[-1])[:5] or "jpg"
-                self.download(thumb_url, os.path.join(variant_group, f"{val_slug}.{ext}"), f"thumb/{label_slug}/{val_slug}")
+                thumb_tag = f"_{opt_id}" if opt_id else ""
+                self.download(thumb_url, os.path.join(variant_group, f"{val_slug}{thumb_tag}.{ext}"), f"thumb/{label_slug}/{val_slug}{thumb_tag}")
             if not cust_pid:
                 functions = swatch.get("functions", []); position = v.get("image_id")
                 if not functions or position is None:
@@ -299,8 +313,9 @@ class Downloader:
                             clean_path = clean_path.replace('/Content/', '/', 1)
                         full_url = f"{CUSTOMILY_BASE}{clean_path}" if clean_path.startswith('/') else f"{CUSTOMILY_BASE}/{clean_path}"
                         ext = (clean_path.split("?")[0].split(".")[-1])[:5] or "png"
-                        func_tag = f"_{slot_id}" if len(functions) > 1 else ""
-                        self.download(full_url, os.path.join(clip_group, f"{val_slug}{func_tag}.{ext}"), f"clip/{label_slug}/{val_slug}{func_tag}")
+                        func_tag = f"_{slot_id}" if slot_id else ""
+                        pos_tag = f"_pos{position}" if position is not None else ""
+                        self.download(full_url, os.path.join(clip_group, f"{val_slug}{func_tag}{pos_tag}.{ext}"), f"clip/{label_slug}/{val_slug}{func_tag}{pos_tag}")
             else:
                 try:
                     gp = sess.get(GET_PRODUCT_URL, params={"productId": cust_pid, "clientVersion": "3.10.85", "useListEPS": "true"}, headers=GET_PRODUCT_HEADERS, timeout=15).json()
