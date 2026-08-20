@@ -600,6 +600,7 @@ class CrawlPage(QWidget):
         self.wr_tab = ProductTab("Wrappiness", self.current_key, is_shopify=True)
         self.tn_tab = ProductTab("The Nursera", self.current_key, is_shopify=True)
         self.sb_tab = ProductTab("Sistabag", self.current_key, is_shopify=True)
+        self.st_tab = ProductTab("Suzitee", self.current_key, is_shopify=True)
 
         self.tabs.addTab(self.wp_tab, "Wanderprints")
         self.tabs.addTab(self.gs_tab, "Gossby")
@@ -610,6 +611,7 @@ class CrawlPage(QWidget):
         self.tabs.addTab(self.wr_tab, "Wrappiness")
         self.tabs.addTab(self.tn_tab, "The Nursera")
         self.tabs.addTab(self.sb_tab, "Sistabag")
+        self.tabs.addTab(self.st_tab, "Suzitee")
         root.addWidget(self.tabs, 1)
 
     def current_key(self):
@@ -617,7 +619,7 @@ class CrawlPage(QWidget):
 
     def _sync_key_state(self):
         has_key = bool(self.current_key())
-        for tab in (self.wp_tab, self.gs_tab, self.dc_tab, self.mc_tab, self.tc_tab, self.ph_tab, self.wr_tab, self.tn_tab, self.sb_tab):
+        for tab in (self.wp_tab, self.gs_tab, self.dc_tab, self.mc_tab, self.tc_tab, self.ph_tab, self.wr_tab, self.tn_tab, self.sb_tab, self.st_tab):
             tab.set_has_key(has_key)
 
 

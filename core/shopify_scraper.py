@@ -551,7 +551,7 @@ class ShopifyDownloader:
         return clipart_urls
 
     def fetch_customily_cliparts(self, product_url: str, pdata: dict) -> list[tuple[str, str]]:
-        """Lấy tất cả các file ảnh cliparts từ Customily API có cấu trúc."""
+        """Lấy tất cả các file ảnh cliparts từ Customily API có cấu trúc (bao gồm Dynamic Paths và Image Libraries)."""
         clipart_urls = []
         try:
             html = self._get_product_html(product_url)
@@ -601,6 +601,8 @@ class ShopifyDownloader:
                 return []
                 
             placeholders = {}
+            library_ids = set() # (ph_id, lib_id)
+
             for pid in customily_product_ids:
                 self.log(f"  [Customily] Extracted Customily Product UUID: {pid}")
                 prod_url = f"https://app.customily.com/api/Product/GetProduct?productId={pid}&clientVersion=3.10.93&useListEPS=true"
@@ -616,12 +618,17 @@ class ShopifyDownloader:
                         previews.extend([p for p in prod_data.get('listPreviews') if isinstance(p, dict)])
 
                     for prev in previews:
+                        if prev.get('imagePath'):
+                            ip = prev['imagePath']
+                            full_u = f"https://cdn.customily.com{ip}" if ip.startswith('/') else f"https://cdn.customily.com/{ip}"
+                            clipart_urls.append((full_u, f"customily/base_artworks/{os.path.basename(ip)}"))
+
                         for ph in prev.get('imagePlaceHoldersPreview', []) or []:
                             if not isinstance(ph, dict):
                                 continue
                             ph_id = str(ph.get('id'))
-                            dp = ph.get('dynamicImagesPath')
                             mapping = placeholders.setdefault(ph_id, {})
+                            dp = ph.get('dynamicImagesPath')
                             if dp:
                                 try:
                                     paths = json.loads(dp)
@@ -631,12 +638,49 @@ class ShopifyDownloader:
                                 except Exception:
                                     pass
 
+                            lib_id = ph.get('imageLibraryId')
+                            if lib_id:
+                                library_ids.add((ph_id, str(lib_id)))
+
                     # Extract raw product-images artwork layers
                     matches = re.findall(r'/(?:Content/)?product-images/([a-zA-Z0-9\-_/]+\.(?:png|jpg|jpeg|webp))', data_text, re.IGNORECASE)
                     for m in matches:
                         full_u = f"https://cdn.customily.com/product-images/{m}" if not m.startswith('product-images/') else f"https://cdn.customily.com/{m}"
                         clean_fname = m.replace('/', '_')
                         clipart_urls.append((full_u, f"customily/product_artworks/{clean_fname}"))
+
+            # Fetch elements for each Customily Library concurrently
+            if library_ids:
+                self.log(f"  [Customily] Fetching {len(library_ids)} image libraries from Customily API...")
+                for ph_id, lib_id in library_ids:
+                    pos_url = f"https://app.customily.com/api/Libraries/{lib_id}/Elements/Positions"
+                    r_pos = self._fetch_url(pos_url, timeout=10)
+                    if r_pos and r_pos.status_code == 200:
+                        try:
+                            positions = r_pos.json()
+                            mapping = placeholders.setdefault(ph_id, {})
+
+                            def _fetch_pos_elem(pos):
+                                u = f"https://app.customily.com/api/Libraries/{lib_id}/Elements/Position/{pos}"
+                                try:
+                                    res = self._fetch_url(u, timeout=10)
+                                    if res and res.status_code == 200:
+                                        elem = res.json()
+                                        if elem and elem.get('Path'):
+                                            return str(pos), elem['Path']
+                                except Exception:
+                                    pass
+                                return None
+
+                            with ThreadPoolExecutor(max_workers=_worker_count(16, 8)) as ex:
+                                results = list(ex.map(_fetch_pos_elem, positions))
+                                for res in results:
+                                    if res:
+                                        pos_str, path = res
+                                        if pos_str not in mapping:
+                                            mapping[pos_str] = path
+                        except Exception as e:
+                            self.log(f"  [WARN Customily] Error processing library {lib_id}: {e}")
 
             for opt in opts:
                 if not isinstance(opt, dict):
