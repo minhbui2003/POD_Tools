@@ -1,12 +1,12 @@
 {
   "version": "1.1.7",
-  "release_notes": "Version 1.1.7: Add Suzitee tab and upgrade Customily library extraction to crawl full cliparts",
+  "release_notes": "Version 1.1.7",
   "windows": {
     "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.7/POD_Tools.exe",
-    "sha256": ""
+    "sha256": "2c10603c31b9aa80c0430f6c1058687b9a75c60d8fb6ed5d39d3e732ef4042e9"
   },
   "macos": {
     "download_url": "https://github.com/minhbui2003/POD_Tools/releases/download/v1.1.7/POD_Tools_mac.zip",
-    "sha256": ""
+    "sha256": "a2a496fec88f90429adbace5282f85067cdd3cceb61e07e4021907b6c5b9f185"
   }
 }
